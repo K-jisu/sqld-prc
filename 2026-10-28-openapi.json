@@ -1,0 +1,5507 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "SQLD 학습 사이트 API",
+    "version": "1.0.0-draft",
+    "description": "모바일·PC 공통 REST·JSON 설계 계약. 실제 FastAPI 서버에서 추출한 파일이 아니며 동작하는 서버는 아직 없다. 사람이 읽는 동작·보안·오류 규칙은 2026-10-28-api-design.md 참조."
+  },
+  "servers": [
+    {
+      "url": "/api/v1",
+      "description": "프론트와 동일 출처. 별도 FastAPI 배포는 이 경로로 프록시."
+    }
+  ],
+  "tags": [
+    {
+      "name": "인증"
+    },
+    {
+      "name": "문제은행"
+    },
+    {
+      "name": "풀이"
+    },
+    {
+      "name": "내 기록"
+    }
+  ],
+  "security": [
+    {
+      "browserSession": []
+    }
+  ],
+  "paths": {
+    "/browser-session": {
+      "post": {
+        "operationId": "ensureBrowserSession",
+        "tags": [
+          "인증"
+        ],
+        "summary": "접속 세션 준비",
+        "description": "본문 없음. 유효 쿠키면 기존 guest/user 유지, 없거나 만료되면 새 guest 생성. Set-Cookie는 필요할 때만 발급. CSRF Origin 검증. 로그인을 자동 복구하지 않는다.",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "개인·접속 응답은 private, no-store. 공개 catalog는 public, max-age=60."
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "필요 시 sqld_session 발급. HttpOnly, 운영 Secure, SameSite=Lax, Path=/."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewerResponse"
+                },
+                "examples": {
+                  "sample": {
+                    "summary": "가상 데이터 예시. 원문·실제 사용자 데이터가 아님",
+                    "value": {
+                      "server_now": "2026-10-28T01:00:00Z",
+                      "viewer": {
+                        "viewer_type": "guest",
+                        "viewer_key": "guest:00000000-0000-4000-8000-000000000384",
+                        "user": null,
+                        "expires_at": "2026-11-04T01:00:00Z"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "허용하지 않는 Origin 또는 Content-Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "요청 한도 초과. Retry-After 확인",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "재시도까지 초"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "일시적 서버·외부 인증 장애 또는 출제 가능 문항 부족",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "그 외 오류도 ErrorResponse 사용. 내부 예외·토큰은 노출하지 않는다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "operationId": "getViewer",
+        "tags": [
+          "인증"
+        ],
+        "summary": "현재 로그인·게스트 상태",
+        "description": "먼저 browser-session 준비. 쿠키가 유효해야 guest/user를 반환한다. viewer_key는 guest:<browser_session.id> 또는 user:<users.id>이며 인증 토큰이 아니다.",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "개인·접속 응답은 private, no-store. 공개 catalog는 public, max-age=60."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewerResponse"
+                },
+                "examples": {
+                  "sample": {
+                    "summary": "가상 데이터 예시. 원문·실제 사용자 데이터가 아님",
+                    "value": {
+                      "server_now": "2026-10-28T01:00:00Z",
+                      "viewer": {
+                        "viewer_type": "user",
+                        "viewer_key": "user:00000000-0000-4000-8000-000000000320",
+                        "user": {
+                          "id": "00000000-0000-4000-8000-000000000320",
+                          "display_name": null
+                        },
+                        "expires_at": "2026-11-27T01:00:00Z"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "접속 세션 누락·만료 또는 로그인 필요",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "요청 한도 초과. Retry-After 확인",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "재시도까지 초"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "일시적 서버·외부 인증 장애 또는 출제 가능 문항 부족",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "그 외 오류도 ErrorResponse 사용. 내부 예외·토큰은 노출하지 않는다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/kakao/start": {
+      "post": {
+        "operationId": "startKakaoLogin",
+        "tags": [
+          "인증"
+        ],
+        "summary": "카카오 로그인 시작",
+        "description": "claim_session_id는 현재 화면의 본인 guest 풀이만 허용. null이면 연결 없이 로그인. 로그인 사용자에게는 409 ALREADY_AUTHENTICATED. OAuth state는 접속 쿠키에 바인딩한 10분 일회성 값. 브라우저는 authorize_url로 같은 창 이동.",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "개인·접속 응답은 private, no-store. 공개 catalog는 public, max-age=60."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KakaoStartResponse"
+                },
+                "examples": {
+                  "sample": {
+                    "summary": "가상 데이터 예시. 원문·실제 사용자 데이터가 아님",
+                    "value": {
+                      "authorize_url": "https://kauth.kakao.com/oauth/authorize?client_id=example&redirect_uri=https%3A%2F%2Fexample.test%2Fapi%2Fv1%2Fauth%2Fkakao%2Fcallback&response_type=code&state=example-random-state",
+                      "expires_at": "2026-10-28T01:10:00Z"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "접속 세션 누락·만료 또는 로그인 필요",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "허용하지 않는 Origin 또는 Content-Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "존재하지 않거나 접근 권한이 없는 리소스",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "상태·답안 revision·생성 조건 충돌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "필드 또는 업무 규칙 검증 실패",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "요청 한도 초과. Retry-After 확인",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "재시도까지 초"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "일시적 서버·외부 인증 장애 또는 출제 가능 문항 부족",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "그 외 오류도 ErrorResponse 사용. 내부 예외·토큰은 노출하지 않는다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KakaoStartRequest"
+              },
+              "example": {
+                "return_to": "/study/00000000-0000-4000-8000-000000000001",
+                "claim_session_id": "00000000-0000-4000-8000-000000000001"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/kakao/callback": {
+      "get": {
+        "operationId": "completeKakaoLogin",
+        "tags": [
+          "인증"
+        ],
+        "summary": "카카오 인증 콜백",
+        "description": "전체 페이지 이동용 콜백. 애플리케이션이 처리하는 모든 성공·취소·검증 실패·요청 제한·외부 인증 장애는 303 로컬 복귀한다. state/code/error query의 누락·모순도 핸들러에서 검증하여 JSON 오류로 반환하지 않는다. state와 원래 접속 쿠키를 검증하기 전에는 로그인·기록 연결을 실행하지 않는다.",
+        "responses": {
+          "303": {
+            "description": "원래 로컬 경로 또는 안전한 / 경로로 복귀",
+            "headers": {
+              "Location": {
+                "required": true,
+                "schema": {
+                  "type": "string"
+                },
+                "description": "안전한 로컬 경로에 auth=success|cancelled|failed, 성공 시 claim=attached|already_owned|none|failed, 실패 시 고정 reason 코드. 토큰·인가 코드 없음."
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "로그인 성공 시 서비스 토큰 회전. Provider 토큰은 브라우저에 노출하지 않는다."
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              }
+            }
+          }
+        },
+        "security": [],
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "성공 처리에는 필수지만 누락·잘못된 값도 JSON 422 대신 고정 안전 경로로 303 복귀한다."
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "error",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "error_description",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "operationId": "logout",
+        "tags": [
+          "인증"
+        ],
+        "summary": "서비스 로그아웃",
+        "description": "본문 없음. 기존 접속 세션을 무효화하고 새 guest를 발급한다. 누락/만료 쿠키도 성공 처리. 반복 요청은 더 이상 로그인 권한을 복원하지 않는다. 카카오계정 자체 로그아웃·연결 해제는 수행하지 않는다.",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "개인·접속 응답은 private, no-store. 공개 catalog는 public, max-age=60."
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "필요 시 sqld_session 발급. HttpOnly, 운영 Secure, SameSite=Lax, Path=/."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewerResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "허용하지 않는 Origin 또는 Content-Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "요청 한도 초과. Retry-After 확인",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "재시도까지 초"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "일시적 서버·외부 인증 장애 또는 출제 가능 문항 부족",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "그 외 오류도 ErrorResponse 사용. 내부 예외·토큰은 노출하지 않는다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/catalog": {
+      "get": {
+        "operationId": "getCatalog",
+        "tags": [
+          "문제은행"
+        ],
+        "summary": "과목·단원·공개 문항 수와 시험 정책",
+        "description": "본문·정답·해설은 포함하지 않는다. 모바일·PC 공통. published 버전 기준으로 집계한다.",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "개인·접속 응답은 private, no-store. 공개 catalog는 public, max-age=60."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogResponse"
+                },
+                "examples": {
+                  "sample": {
+                    "summary": "가상 데이터 예시. 원문·실제 사용자 데이터가 아님",
+                    "value": {
+                      "subjects": [
+                        {
+                          "id": 1,
+                          "name": "데이터 모델링의 이해",
+                          "display_order": 1,
+                          "published_question_count": 12,
+                          "chapters": [
+                            {
+                              "id": 1,
+                              "name": "단원 예시 A",
+                              "display_order": 1,
+                              "published_question_count": 1
+                            },
+                            {
+                              "id": 2,
+                              "name": "단원 예시 B",
+                              "display_order": 2,
+                              "published_question_count": 11
+                            }
+                          ]
+                        },
+                        {
+                          "id": 2,
+                          "name": "SQL 기본 및 활용",
+                          "display_order": 2,
+                          "published_question_count": 48,
+                          "chapters": [
+                            {
+                              "id": 3,
+                              "name": "단원 예시 C",
+                              "display_order": 1,
+                              "published_question_count": 48
+                            }
+                          ]
+                        }
+                      ],
+                      "question_types": [
+                        "single_choice"
+                      ],
+                      "mock_policy": {
+                        "question_count": 50,
+                        "duration_seconds": 5400,
+                        "passing_score": 60,
+                        "subjects": [
+                          {
+                            "subject_id": 1,
+                            "question_count": 10,
+                            "points_per_question": 2,
+                            "minimum_score": 8
+                          },
+                          {
+                            "subject_id": 2,
+                            "question_count": 40,
+                            "points_per_question": 2,
+                            "minimum_score": 32
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "요청 한도 초과. Retry-After 확인",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "재시도까지 초"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "일시적 서버·외부 인증 장애 또는 출제 가능 문항 부족",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "그 외 오류도 ErrorResponse 사용. 내부 예외·토큰은 노출하지 않는다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/study-sessions/{session_id}": {
+      "put": {
+        "operationId": "createStudySession",
+        "tags": [
+          "풀이"
+        ],
+        "summary": "학습 세션 생성",
+        "description": "클라이언트 생성 UUID를 PK로 사용한다. 동일 소유자·같은 정규화 요청의 재시도는 200. 기존 세션의 조건 변경은 409 CREATE_REQUEST_CONFLICT. 출제 및 첫 draft 답안을 한 번에 생성한다. wrong_answers만 로그인 필수. previous_session은 본인 completed study/mock 세션의 논리 문항 목록을 현재 공개 버전으로 재배정한다.",
+        "responses": {
+          "200": {
+            "description": "같은 생성 요청의 재전송. 기존 리소스 반환",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "개인·접속 응답은 private, no-store. 공개 catalog는 public, max-age=60."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "생성 완료",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "개인·접속 응답은 private, no-store. 공개 catalog는 public, max-age=60."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                },
+                "examples": {
+                  "sample": {
+                    "summary": "가상 데이터 예시. 원문·실제 사용자 데이터가 아님",
+                    "value": {
+                      "server_now": "2026-10-28T01:00:00Z",
+                      "session": {
+                        "id": "00000000-0000-4000-8000-000000000001",
+                        "mode": "study",
+                        "status": "active",
+                        "owner_type": "guest",
+                        "current_position": 1,
+                        "item_count": 1,
+                        "answered_item_count": 0,
+                        "graded_item_count": 0,
+                        "started_at": "2026-10-28T01:00:00Z",
+                        "deadline_at": null,
+                        "finished_at": null,
+                        "finish_reason": null,
+                        "study_filter": {
+                          "scope": "chapters",
+                          "chapter_ids": [
+                            1
+                          ]
+                        }
+                      },
+                      "items": [
+                        {
+                          "item_id": "00000000-0000-4000-8000-000000000002",
+                          "position": 1,
+                          "question_key": "S1-Q001",
+                          "subject_id": 1,
+                          "chapter_id": 1,
+                          "answered": false,
+                          "graded": false
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "접속 세션 누락·만료 또는 로그인 필요",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "허용하지 않는 Origin 또는 Content-Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "존재하지 않거나 접근 권한이 없는 리소스",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "상태·답안 revision·생성 조건 충돌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "필드 또는 업무 규칙 검증 실패",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "요청 한도 초과. Retry-After 확인",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "재시도까지 초"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "일시적 서버·외부 인증 장애 또는 출제 가능 문항 부족",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "그 외 오류도 ErrorResponse 사용. 내부 예외·토큰은 노출하지 않는다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StudyCreateRequest"
+              },
+              "example": {
+                "scope": "chapters",
+                "chapter_ids": [
+                  1
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SessionId"
+          }
+        ]
+      }
+    },
+    "/mock-sessions/{session_id}": {
+      "put": {
+        "operationId": "createMockSession",
+        "tags": [
+          "풀이"
+        ],
+        "summary": "모의시험 생성",
+        "description": "고정 50문항·90분. 클라이언트 UUID로 중복 생성을 방지한다. 동일 브라우저의 본인 active mock이 있으면 먼저 만료 처리 후, 아직 active이면 409 ACTIVE_MOCK_EXISTS. 처음 성공한 생성 시각부터 마감하며 재시도로 연장하지 않는다.",
+        "responses": {
+          "200": {
+            "description": "같은 생성 요청의 재전송. 기존 리소스 반환",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "개인·접속 응답은 private, no-store. 공개 catalog는 public, max-age=60."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "생성 완료",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "개인·접속 응답은 private, no-store. 공개 catalog는 public, max-age=60."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "접속 세션 누락·만료 또는 로그인 필요",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "허용하지 않는 Origin 또는 Content-Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "존재하지 않거나 접근 권한이 없는 리소스",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "상태·답안 revision·생성 조건 충돌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "필드 또는 업무 규칙 검증 실패",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "요청 한도 초과. Retry-After 확인",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "재시도까지 초"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "일시적 서버·외부 인증 장애 또는 출제 가능 문항 부족",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "그 외 오류도 ErrorResponse 사용. 내부 예외·토큰은 노출하지 않는다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmptyRequest"
+              },
+              "example": {}
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SessionId"
+          }
+        ]
+      }
+    },
+    "/quiz-sessions": {
+      "get": {
+        "operationId": "listActiveSessions",
+        "tags": [
+          "풀이"
+        ],
+        "summary": "본인 진행 중 풀이 조회",
+        "description": "guest는 현재 browser 소유 active만, user는 계정 전체 active만 반환한다. 기한 지난 mock은 먼저 timeout 확정하여 active 목록에서 제외한다. started_at DESC,id DESC. 과거 기록 페이지네이션은 별도 API.",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "개인·접속 응답은 private, no-store. 공개 catalog는 public, max-age=60."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiveSessionsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "잘못된 커서",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "접속 세션 누락·만료 또는 로그인 필요",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "요청 한도 초과. Retry-After 확인",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "재시도까지 초"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "일시적 서버·외부 인증 장애 또는 출제 가능 문항 부족",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "그 외 오류도 ErrorResponse 사용. 내부 예외·토큰은 노출하지 않는다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "study",
+                "mock"
+              ]
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          }
+        ]
+      }
+    },
+    "/quiz-sessions/{session_id}": {
+      "get": {
+        "operationId": "getQuizSession",
+        "tags": [
+          "풀이"
+        ],
+        "summary": "풀이 상태와 문항 이동 목록",
+        "description": "기한 지난 mock을 서버에서 확정할 수 있다. 전체 본문·정답은 포함하지 않는다. completed mock의 결과는 result API 사용.",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "개인·접속 응답은 private, no-store. 공개 catalog는 public, max-age=60."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "접속 세션 누락·만료 또는 로그인 필요",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "존재하지 않거나 접근 권한이 없는 리소스",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "요청 한도 초과. Retry-After 확인",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "재시도까지 초"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "일시적 서버·외부 인증 장애 또는 출제 가능 문항 부족",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "그 외 오류도 ErrorResponse 사용. 내부 예외·토큰은 노출하지 않는다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SessionId"
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "saveCurrentPosition",
+        "tags": [
+          "풀이"
+        ],
+        "summary": "현재 문항 위치 저장",
+        "description": "active 풀이에서만 허용. 범위를 벗어난 순번은 422. 위치는 서버 도착 순서로 마지막 값이 남는다. 답안 revision과는 별개이며 답안 저장을 대체하지 않는다.",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "개인·접속 응답은 private, no-store. 공개 catalog는 public, max-age=60."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "접속 세션 누락·만료 또는 로그인 필요",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "허용하지 않는 Origin 또는 Content-Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "존재하지 않거나 접근 권한이 없는 리소스",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "상태·답안 revision·생성 조건 충돌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "필드 또는 업무 규칙 검증 실패",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "요청 한도 초과. Retry-After 확인",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "재시도까지 초"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "일시적 서버·외부 인증 장애 또는 출제 가능 문항 부족",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "그 외 오류도 ErrorResponse 사용. 내부 예외·토큰은 노출하지 않는다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PositionRequest"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SessionId"
+          }
+        ]
+      }
+    },
+    "/quiz-sessions/{session_id}/items/{item_id}": {
+      "get": {
+        "operationId": "getQuizItem",
+        "tags": [
+          "풀이"
+        ],
+        "summary": "문제·보기·본인 답안 조회",
+        "description": "mock active/abandoned는 review=null, graded_at=null인 draft 상태 유지. study는 현재 시도가 graded일 때만 review 공개. completed study는 최신 graded 시도 우선, 한 번도 채점하지 않은 문항은 마지막 draft. completed mock은 확정된 review 공개. 정답은 Question·Option·Attempt에 넣지 않는다.",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "개인·접속 응답은 private, no-store. 공개 catalog는 public, max-age=60."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemResponse"
+                },
+                "examples": {
+                  "before_grading": {
+                    "summary": "가상 데이터 예시. 원문·실제 사용자 데이터가 아님",
+                    "value": {
+                      "server_now": "2026-10-28T01:00:00Z",
+                      "session_id": "00000000-0000-4000-8000-000000000001",
+                      "session_status": "active",
+                      "item": {
+                        "id": "00000000-0000-4000-8000-000000000002",
+                        "position": 1,
+                        "question": {
+                          "id": "00000000-0000-4000-8000-000000000003",
+                          "question_key": "S1-Q001",
+                          "version": 1,
+                          "subject_id": 1,
+                          "chapter_id": 1,
+                          "source_number": 1,
+                          "type": "single_choice",
+                          "content_blocks": [
+                            {
+                              "type": "text",
+                              "text": "다음 SQL의 실행 결과를 고르시오."
+                            },
+                            {
+                              "type": "sql",
+                              "text": "SELECT 1;"
+                            }
+                          ],
+                          "options": [
+                            {
+                              "id": "00000000-0000-4000-8000-00000000000b",
+                              "option_number": 1,
+                              "content_blocks": [
+                                {
+                                  "type": "text",
+                                  "text": "1"
+                                }
+                              ]
+                            },
+                            {
+                              "id": "00000000-0000-4000-8000-00000000000c",
+                              "option_number": 2,
+                              "content_blocks": [
+                                {
+                                  "type": "text",
+                                  "text": "2"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        "attempt": {
+                          "id": "00000000-0000-4000-8000-000000000004",
+                          "attempt_number": 1,
+                          "selected_option_id": null,
+                          "revision": 1,
+                          "status": "draft",
+                          "graded_at": null
+                        },
+                        "review": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "접속 세션 누락·만료 또는 로그인 필요",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "존재하지 않거나 접근 권한이 없는 리소스",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "요청 한도 초과. Retry-After 확인",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "재시도까지 초"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "일시적 서버·외부 인증 장애 또는 출제 가능 문항 부족",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "그 외 오류도 ErrorResponse 사용. 내부 예외·토큰은 노출하지 않는다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SessionId"
+          },
+          {
+            "$ref": "#/components/parameters/ItemId"
+          }
+        ]
+      }
+    },
+    "/quiz-sessions/{session_id}/items/{item_id}/answer": {
+      "patch": {
+        "operationId": "saveAnswer",
+        "tags": [
+          "풀이"
+        ],
+        "summary": "보기 선택·해제 저장",
+        "description": "active의 현재 draft에만 허용. selected_option_id=null은 선택 해제. 동일 draft에 현재 값과 같은 선택을 재전송하면 revision이 뒤처져도 상태 변경 없이 현재 값 반환. 다른 선택+revision 불일치는 409 REVISION_CONFLICT. 마감 도달 시 먼저 timeout 채점하고 409 SESSION_CLOSED. 다른 문항의 보기나 이전 attempt는 거부.",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "개인·접속 응답은 private, no-store. 공개 catalog는 public, max-age=60."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemResponse"
+                },
+                "examples": {
+                  "sample": {
+                    "summary": "가상 데이터 예시. 원문·실제 사용자 데이터가 아님",
+                    "value": {
+                      "server_now": "2026-10-28T01:00:00Z",
+                      "session_id": "00000000-0000-4000-8000-000000000001",
+                      "session_status": "active",
+                      "item": {
+                        "id": "00000000-0000-4000-8000-000000000002",
+                        "position": 1,
+                        "question": {
+                          "id": "00000000-0000-4000-8000-000000000003",
+                          "question_key": "S1-Q001",
+                          "version": 1,
+                          "subject_id": 1,
+                          "chapter_id": 1,
+                          "source_number": 1,
+                          "type": "single_choice",
+                          "content_blocks": [
+                            {
+                              "type": "text",
+                              "text": "다음 SQL의 실행 결과를 고르시오."
+                            },
+                            {
+                              "type": "sql",
+                              "text": "SELECT 1;"
+                            }
+                          ],
+                          "options": [
+                            {
+                              "id": "00000000-0000-4000-8000-00000000000b",
+                              "option_number": 1,
+                              "content_blocks": [
+                                {
+                                  "type": "text",
+                                  "text": "1"
+                                }
+                              ]
+                            },
+                            {
+                              "id": "00000000-0000-4000-8000-00000000000c",
+                              "option_number": 2,
+                              "content_blocks": [
+                                {
+                                  "type": "text",
+                                  "text": "2"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        "attempt": {
+                          "id": "00000000-0000-4000-8000-000000000004",
+                          "attempt_number": 1,
+                          "selected_option_id": "00000000-0000-4000-8000-00000000000b",
+                          "revision": 2,
+                          "status": "draft",
+                          "graded_at": null
+                        },
+                        "review": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "접속 세션 누락·만료 또는 로그인 필요",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "허용하지 않는 Origin 또는 Content-Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "존재하지 않거나 접근 권한이 없는 리소스",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "상태·답안 revision·생성 조건 충돌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "sample": {
+                    "summary": "가상 데이터 예시. 원문·실제 사용자 데이터가 아님",
+                    "value": {
+                      "error": {
+                        "code": "REVISION_CONFLICT",
+                        "message": "다른 요청에서 답안이 변경됐습니다. 현재 답안을 확인해 주세요.",
+                        "request_id": "00000000-0000-4000-8000-0000000003e7",
+                        "details": {
+                          "current_attempt_id": "00000000-0000-4000-8000-000000000004",
+                          "current_revision": 3,
+                          "current_selected_option_id": "00000000-0000-4000-8000-00000000000c"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "필드 또는 업무 규칙 검증 실패",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "요청 한도 초과. Retry-After 확인",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "재시도까지 초"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "일시적 서버·외부 인증 장애 또는 출제 가능 문항 부족",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "그 외 오류도 ErrorResponse 사용. 내부 예외·토큰은 노출하지 않는다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveAnswerRequest"
+              },
+              "example": {
+                "attempt_id": "00000000-0000-4000-8000-000000000004",
+                "expected_revision": 1,
+                "selected_option_id": "00000000-0000-4000-8000-00000000000b"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SessionId"
+          },
+          {
+            "$ref": "#/components/parameters/ItemId"
+          }
+        ]
+      }
+    },
+    "/quiz-sessions/{session_id}/items/{item_id}/grade": {
+      "post": {
+        "operationId": "gradeStudyItem",
+        "tags": [
+          "풀이"
+        ],
+        "summary": "학습 문항 하나 채점",
+        "description": "study 전용. 현재 saved 답안과 revision을 확인한다. 선택 없이 채점은 422 ANSWER_REQUIRED. 이미 채점한 동일 attempt는 기존 결과 반환, 중복 통계 없음. 재시도 중이라도 과거 attempt 결과 재조회에는 현재 시도를 덮지 않는다. mock에서는 409 MODE_MISMATCH.",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "개인·접속 응답은 private, no-store. 공개 catalog는 public, max-age=60."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GradeResponse"
+                },
+                "examples": {
+                  "sample": {
+                    "summary": "가상 데이터 예시. 원문·실제 사용자 데이터가 아님",
+                    "value": {
+                      "server_now": "2026-10-28T01:00:10Z",
+                      "session_id": "00000000-0000-4000-8000-000000000001",
+                      "item_id": "00000000-0000-4000-8000-000000000002",
+                      "attempt": {
+                        "id": "00000000-0000-4000-8000-000000000004",
+                        "attempt_number": 1,
+                        "selected_option_id": "00000000-0000-4000-8000-00000000000b",
+                        "revision": 3,
+                        "status": "graded",
+                        "graded_at": "2026-10-28T01:00:10Z"
+                      },
+                      "review": {
+                        "is_correct": true,
+                        "correct_option_id": "00000000-0000-4000-8000-00000000000b",
+                        "explanation_blocks": [
+                          {
+                            "type": "text",
+                            "text": "상수 1을 조회하므로 결과는 1입니다."
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "접속 세션 누락·만료 또는 로그인 필요",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "허용하지 않는 Origin 또는 Content-Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "존재하지 않거나 접근 권한이 없는 리소스",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "상태·답안 revision·생성 조건 충돌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "필드 또는 업무 규칙 검증 실패",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "요청 한도 초과. Retry-After 확인",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "재시도까지 초"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "일시적 서버·외부 인증 장애 또는 출제 가능 문항 부족",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "그 외 오류도 ErrorResponse 사용. 내부 예외·토큰은 노출하지 않는다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GradeRequest"
+              },
+              "example": {
+                "attempt_id": "00000000-0000-4000-8000-000000000004",
+                "expected_revision": 2
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SessionId"
+          },
+          {
+            "$ref": "#/components/parameters/ItemId"
+          }
+        ]
+      }
+    },
+    "/quiz-sessions/{session_id}/items/{item_id}/retry": {
+      "post": {
+        "operationId": "retryStudyItem",
+        "tags": [
+          "풀이"
+        ],
+        "summary": "학습 문항 다시 풀기",
+        "description": "study active에서 채점 완료 previous_attempt_id 바로 다음 순번의 draft를 생성한다. 이미 다음 시도가 있으면 그 시도를 200으로 반환하여 중복 생성하지 않는다. 이전 시도는 보존한다. 재전송이 더 오래된 시도에 대한 것이면 반환 attempt를 현재 UI에 강제로 적용하지 않고 getQuizItem을 재조회한다.",
+        "responses": {
+          "200": {
+            "description": "같은 생성 요청의 재전송. 기존 리소스 반환",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "개인·접속 응답은 private, no-store. 공개 catalog는 public, max-age=60."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetryResponse"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "생성 완료",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "개인·접속 응답은 private, no-store. 공개 catalog는 public, max-age=60."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetryResponse"
+                },
+                "examples": {
+                  "sample": {
+                    "summary": "가상 데이터 예시. 원문·실제 사용자 데이터가 아님",
+                    "value": {
+                      "server_now": "2026-10-28T01:00:10Z",
+                      "session_id": "00000000-0000-4000-8000-000000000001",
+                      "item_id": "00000000-0000-4000-8000-000000000002",
+                      "attempt": {
+                        "id": "00000000-0000-4000-8000-000000000005",
+                        "attempt_number": 2,
+                        "selected_option_id": null,
+                        "revision": 1,
+                        "status": "draft",
+                        "graded_at": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "접속 세션 누락·만료 또는 로그인 필요",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "허용하지 않는 Origin 또는 Content-Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "존재하지 않거나 접근 권한이 없는 리소스",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "상태·답안 revision·생성 조건 충돌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "필드 또는 업무 규칙 검증 실패",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "요청 한도 초과. Retry-After 확인",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "재시도까지 초"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "일시적 서버·외부 인증 장애 또는 출제 가능 문항 부족",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "그 외 오류도 ErrorResponse 사용. 내부 예외·토큰은 노출하지 않는다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetryRequest"
+              },
+              "example": {
+                "previous_attempt_id": "00000000-0000-4000-8000-000000000004"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SessionId"
+          },
+          {
+            "$ref": "#/components/parameters/ItemId"
+          }
+        ]
+      }
+    },
+    "/study-sessions/{session_id}/finish": {
+      "post": {
+        "operationId": "finishStudySession",
+        "tags": [
+          "풀이"
+        ],
+        "summary": "학습 종료",
+        "description": "명시적인 학습 종료. 미채점은 미채점으로 남기고 latest graded만 요약한다. completed 재요청은 기존 결과 반환. 같은 목록 다시 학습은 새 UUID+previous_session으로 생성.",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "개인·접속 응답은 private, no-store. 공개 catalog는 public, max-age=60."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultResponse"
+                },
+                "examples": {
+                  "sample": {
+                    "summary": "가상 데이터 예시. 원문·실제 사용자 데이터가 아님",
+                    "value": {
+                      "server_now": "2026-10-28T01:00:20Z",
+                      "result": {
+                        "mode": "study",
+                        "session": {
+                          "id": "00000000-0000-4000-8000-000000000001",
+                          "mode": "study",
+                          "status": "completed",
+                          "owner_type": "guest",
+                          "current_position": 1,
+                          "item_count": 1,
+                          "answered_item_count": 1,
+                          "graded_item_count": 1,
+                          "started_at": "2026-10-28T01:00:00Z",
+                          "deadline_at": null,
+                          "finished_at": "2026-10-28T01:00:20Z",
+                          "finish_reason": "manual",
+                          "study_filter": {
+                            "scope": "chapters",
+                            "chapter_ids": [
+                              1
+                            ]
+                          }
+                        },
+                        "summary": {
+                          "item_count": 1,
+                          "graded_item_count": 1,
+                          "correct_item_count": 1,
+                          "incorrect_item_count": 0,
+                          "ungraded_item_count": 0,
+                          "accuracy_percent": 100
+                        },
+                        "items": [
+                          {
+                            "item_id": "00000000-0000-4000-8000-000000000002",
+                            "position": 1,
+                            "question_key": "S1-Q001",
+                            "subject_id": 1,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-000000000004",
+                              "selected_option_id": "00000000-0000-4000-8000-00000000000b",
+                              "correct_option_id": "00000000-0000-4000-8000-00000000000b",
+                              "is_correct": true,
+                              "graded_at": "2026-10-28T01:00:10Z"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "접속 세션 누락·만료 또는 로그인 필요",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "허용하지 않는 Origin 또는 Content-Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "존재하지 않거나 접근 권한이 없는 리소스",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "상태·답안 revision·생성 조건 충돌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "필드 또는 업무 규칙 검증 실패",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "요청 한도 초과. Retry-After 확인",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "재시도까지 초"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "일시적 서버·외부 인증 장애 또는 출제 가능 문항 부족",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "그 외 오류도 ErrorResponse 사용. 내부 예외·토큰은 노출하지 않는다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmptyRequest"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SessionId"
+          }
+        ]
+      }
+    },
+    "/mock-sessions/{session_id}/submit": {
+      "post": {
+        "operationId": "submitMockSession",
+        "tags": [
+          "풀이"
+        ],
+        "summary": "모의시험 제출·일괄 채점",
+        "description": "수동 제출 전 저장 요청 완료를 기다리고 미응답 수를 확인한다. 서버 잠금 후 미응답 수와 expected_unanswered_count가 다르면 409 ANSWER_SUMMARY_CHANGED. 마감됐으면 수와 무관하게 timeout 채점. completed 재요청은 기존 결과 반환. abandoned는 409 SESSION_ABANDONED.",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "개인·접속 응답은 private, no-store. 공개 catalog는 public, max-age=60."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "접속 세션 누락·만료 또는 로그인 필요",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "허용하지 않는 Origin 또는 Content-Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "존재하지 않거나 접근 권한이 없는 리소스",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "상태·답안 revision·생성 조건 충돌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "필드 또는 업무 규칙 검증 실패",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "요청 한도 초과. Retry-After 확인",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "재시도까지 초"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "일시적 서버·외부 인증 장애 또는 출제 가능 문항 부족",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "그 외 오류도 ErrorResponse 사용. 내부 예외·토큰은 노출하지 않는다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitRequest"
+              },
+              "example": {
+                "expected_unanswered_count": 2
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SessionId"
+          }
+        ]
+      }
+    },
+    "/mock-sessions/{session_id}/abandon": {
+      "post": {
+        "operationId": "abandonMockSession",
+        "tags": [
+          "풀이"
+        ],
+        "summary": "모의시험 명시적 포기",
+        "description": "사용자가 포기 확인 후 요청한다. 마감 전 active만 abandoned로 전환하며 정답·점수 공개 없음. 마감 후 요청은 timeout completed로 반환. 이미 종료된 상태는 바꾸지 않고 반환. 창 닫기/이동은 이 API를 자동 호출하지 않는다.",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "개인·접속 응답은 private, no-store. 공개 catalog는 public, max-age=60."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "접속 세션 누락·만료 또는 로그인 필요",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "허용하지 않는 Origin 또는 Content-Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "존재하지 않거나 접근 권한이 없는 리소스",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "상태·답안 revision·생성 조건 충돌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "필드 또는 업무 규칙 검증 실패",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "요청 한도 초과. Retry-After 확인",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "재시도까지 초"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "일시적 서버·외부 인증 장애 또는 출제 가능 문항 부족",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "그 외 오류도 ErrorResponse 사용. 내부 예외·토큰은 노출하지 않는다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmptyRequest"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SessionId"
+          }
+        ]
+      }
+    },
+    "/quiz-sessions/{session_id}/result": {
+      "get": {
+        "operationId": "getQuizResult",
+        "tags": [
+          "풀이"
+        ],
+        "summary": "본인 완료 풀이 결과",
+        "description": "게스트도 자기 completed 풀이 조회 가능. active 미마감은 409 RESULT_NOT_READY, abandoned는 409 SESSION_ABANDONED. 만료 active mock은 먼저 completed timeout 처리한다. result 항목에는 정오답·정답 보기 ID가 있고 본문·해설은 개별 item API로 조회한다.",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "개인·접속 응답은 private, no-store. 공개 catalog는 public, max-age=60."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultResponse"
+                },
+                "examples": {
+                  "study": {
+                    "summary": "가상 데이터 예시. 원문·실제 사용자 데이터가 아님",
+                    "value": {
+                      "server_now": "2026-10-28T01:00:20Z",
+                      "result": {
+                        "mode": "study",
+                        "session": {
+                          "id": "00000000-0000-4000-8000-000000000001",
+                          "mode": "study",
+                          "status": "completed",
+                          "owner_type": "guest",
+                          "current_position": 1,
+                          "item_count": 1,
+                          "answered_item_count": 1,
+                          "graded_item_count": 1,
+                          "started_at": "2026-10-28T01:00:00Z",
+                          "deadline_at": null,
+                          "finished_at": "2026-10-28T01:00:20Z",
+                          "finish_reason": "manual",
+                          "study_filter": {
+                            "scope": "chapters",
+                            "chapter_ids": [
+                              1
+                            ]
+                          }
+                        },
+                        "summary": {
+                          "item_count": 1,
+                          "graded_item_count": 1,
+                          "correct_item_count": 1,
+                          "incorrect_item_count": 0,
+                          "ungraded_item_count": 0,
+                          "accuracy_percent": 100
+                        },
+                        "items": [
+                          {
+                            "item_id": "00000000-0000-4000-8000-000000000002",
+                            "position": 1,
+                            "question_key": "S1-Q001",
+                            "subject_id": 1,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-000000000004",
+                              "selected_option_id": "00000000-0000-4000-8000-00000000000b",
+                              "correct_option_id": "00000000-0000-4000-8000-00000000000b",
+                              "is_correct": true,
+                              "graded_at": "2026-10-28T01:00:10Z"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "mock_timeout": {
+                    "summary": "가상 데이터 예시. 원문·실제 사용자 데이터가 아님",
+                    "value": {
+                      "server_now": "2026-10-28T02:35:00Z",
+                      "result": {
+                        "mode": "mock",
+                        "session": {
+                          "id": "00000000-0000-4000-8000-000000000064",
+                          "mode": "mock",
+                          "status": "completed",
+                          "owner_type": "guest",
+                          "current_position": 1,
+                          "item_count": 50,
+                          "answered_item_count": 48,
+                          "graded_item_count": 50,
+                          "started_at": "2026-10-28T01:00:00Z",
+                          "deadline_at": "2026-10-28T02:30:00Z",
+                          "finished_at": "2026-10-28T02:30:00Z",
+                          "finish_reason": "timeout",
+                          "study_filter": null
+                        },
+                        "summary": {
+                          "item_count": 50,
+                          "answered_item_count": 48,
+                          "unanswered_item_count": 2,
+                          "correct_item_count": 30,
+                          "incorrect_item_count": 20,
+                          "score": 60,
+                          "maximum_score": 100,
+                          "accuracy_percent": 60,
+                          "passed": true,
+                          "subjects": [
+                            {
+                              "subject_id": 1,
+                              "question_count": 10,
+                              "correct_count": 4,
+                              "score": 8,
+                              "maximum_score": 20,
+                              "minimum_score": 8,
+                              "passed": true
+                            },
+                            {
+                              "subject_id": 2,
+                              "question_count": 40,
+                              "correct_count": 26,
+                              "score": 52,
+                              "maximum_score": 80,
+                              "minimum_score": 32,
+                              "passed": true
+                            }
+                          ]
+                        },
+                        "items": [
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000c8",
+                            "position": 1,
+                            "question_key": "S1-Q001",
+                            "subject_id": 1,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-00000000012c",
+                              "selected_option_id": "00000000-0000-4000-8000-0000000001f4",
+                              "correct_option_id": "00000000-0000-4000-8000-0000000001f4",
+                              "is_correct": true,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000c9",
+                            "position": 2,
+                            "question_key": "S1-Q002",
+                            "subject_id": 1,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-00000000012d",
+                              "selected_option_id": "00000000-0000-4000-8000-0000000001f6",
+                              "correct_option_id": "00000000-0000-4000-8000-0000000001f6",
+                              "is_correct": true,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000ca",
+                            "position": 3,
+                            "question_key": "S1-Q003",
+                            "subject_id": 1,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-00000000012e",
+                              "selected_option_id": "00000000-0000-4000-8000-0000000001f8",
+                              "correct_option_id": "00000000-0000-4000-8000-0000000001f8",
+                              "is_correct": true,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000cb",
+                            "position": 4,
+                            "question_key": "S1-Q004",
+                            "subject_id": 1,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-00000000012f",
+                              "selected_option_id": "00000000-0000-4000-8000-0000000001fa",
+                              "correct_option_id": "00000000-0000-4000-8000-0000000001fa",
+                              "is_correct": true,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000cc",
+                            "position": 5,
+                            "question_key": "S1-Q005",
+                            "subject_id": 1,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-000000000130",
+                              "selected_option_id": "00000000-0000-4000-8000-0000000001fd",
+                              "correct_option_id": "00000000-0000-4000-8000-0000000001fc",
+                              "is_correct": false,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000cd",
+                            "position": 6,
+                            "question_key": "S1-Q006",
+                            "subject_id": 1,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-000000000131",
+                              "selected_option_id": "00000000-0000-4000-8000-0000000001ff",
+                              "correct_option_id": "00000000-0000-4000-8000-0000000001fe",
+                              "is_correct": false,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000ce",
+                            "position": 7,
+                            "question_key": "S1-Q007",
+                            "subject_id": 1,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-000000000132",
+                              "selected_option_id": "00000000-0000-4000-8000-000000000201",
+                              "correct_option_id": "00000000-0000-4000-8000-000000000200",
+                              "is_correct": false,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000cf",
+                            "position": 8,
+                            "question_key": "S1-Q008",
+                            "subject_id": 1,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-000000000133",
+                              "selected_option_id": "00000000-0000-4000-8000-000000000203",
+                              "correct_option_id": "00000000-0000-4000-8000-000000000202",
+                              "is_correct": false,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000d0",
+                            "position": 9,
+                            "question_key": "S1-Q009",
+                            "subject_id": 1,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-000000000134",
+                              "selected_option_id": "00000000-0000-4000-8000-000000000205",
+                              "correct_option_id": "00000000-0000-4000-8000-000000000204",
+                              "is_correct": false,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000d1",
+                            "position": 10,
+                            "question_key": "S1-Q010",
+                            "subject_id": 1,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-000000000135",
+                              "selected_option_id": "00000000-0000-4000-8000-000000000207",
+                              "correct_option_id": "00000000-0000-4000-8000-000000000206",
+                              "is_correct": false,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000d2",
+                            "position": 11,
+                            "question_key": "S2-Q001",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-000000000136",
+                              "selected_option_id": "00000000-0000-4000-8000-000000000208",
+                              "correct_option_id": "00000000-0000-4000-8000-000000000208",
+                              "is_correct": true,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000d3",
+                            "position": 12,
+                            "question_key": "S2-Q002",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-000000000137",
+                              "selected_option_id": "00000000-0000-4000-8000-00000000020a",
+                              "correct_option_id": "00000000-0000-4000-8000-00000000020a",
+                              "is_correct": true,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000d4",
+                            "position": 13,
+                            "question_key": "S2-Q003",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-000000000138",
+                              "selected_option_id": "00000000-0000-4000-8000-00000000020c",
+                              "correct_option_id": "00000000-0000-4000-8000-00000000020c",
+                              "is_correct": true,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000d5",
+                            "position": 14,
+                            "question_key": "S2-Q004",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-000000000139",
+                              "selected_option_id": "00000000-0000-4000-8000-00000000020e",
+                              "correct_option_id": "00000000-0000-4000-8000-00000000020e",
+                              "is_correct": true,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000d6",
+                            "position": 15,
+                            "question_key": "S2-Q005",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-00000000013a",
+                              "selected_option_id": "00000000-0000-4000-8000-000000000210",
+                              "correct_option_id": "00000000-0000-4000-8000-000000000210",
+                              "is_correct": true,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000d7",
+                            "position": 16,
+                            "question_key": "S2-Q006",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-00000000013b",
+                              "selected_option_id": "00000000-0000-4000-8000-000000000212",
+                              "correct_option_id": "00000000-0000-4000-8000-000000000212",
+                              "is_correct": true,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000d8",
+                            "position": 17,
+                            "question_key": "S2-Q007",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-00000000013c",
+                              "selected_option_id": "00000000-0000-4000-8000-000000000214",
+                              "correct_option_id": "00000000-0000-4000-8000-000000000214",
+                              "is_correct": true,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000d9",
+                            "position": 18,
+                            "question_key": "S2-Q008",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-00000000013d",
+                              "selected_option_id": "00000000-0000-4000-8000-000000000216",
+                              "correct_option_id": "00000000-0000-4000-8000-000000000216",
+                              "is_correct": true,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000da",
+                            "position": 19,
+                            "question_key": "S2-Q009",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-00000000013e",
+                              "selected_option_id": "00000000-0000-4000-8000-000000000218",
+                              "correct_option_id": "00000000-0000-4000-8000-000000000218",
+                              "is_correct": true,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000db",
+                            "position": 20,
+                            "question_key": "S2-Q010",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-00000000013f",
+                              "selected_option_id": "00000000-0000-4000-8000-00000000021a",
+                              "correct_option_id": "00000000-0000-4000-8000-00000000021a",
+                              "is_correct": true,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000dc",
+                            "position": 21,
+                            "question_key": "S2-Q011",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-000000000140",
+                              "selected_option_id": "00000000-0000-4000-8000-00000000021c",
+                              "correct_option_id": "00000000-0000-4000-8000-00000000021c",
+                              "is_correct": true,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000dd",
+                            "position": 22,
+                            "question_key": "S2-Q012",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-000000000141",
+                              "selected_option_id": "00000000-0000-4000-8000-00000000021e",
+                              "correct_option_id": "00000000-0000-4000-8000-00000000021e",
+                              "is_correct": true,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000de",
+                            "position": 23,
+                            "question_key": "S2-Q013",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-000000000142",
+                              "selected_option_id": "00000000-0000-4000-8000-000000000220",
+                              "correct_option_id": "00000000-0000-4000-8000-000000000220",
+                              "is_correct": true,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000df",
+                            "position": 24,
+                            "question_key": "S2-Q014",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-000000000143",
+                              "selected_option_id": "00000000-0000-4000-8000-000000000222",
+                              "correct_option_id": "00000000-0000-4000-8000-000000000222",
+                              "is_correct": true,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000e0",
+                            "position": 25,
+                            "question_key": "S2-Q015",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-000000000144",
+                              "selected_option_id": "00000000-0000-4000-8000-000000000224",
+                              "correct_option_id": "00000000-0000-4000-8000-000000000224",
+                              "is_correct": true,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000e1",
+                            "position": 26,
+                            "question_key": "S2-Q016",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-000000000145",
+                              "selected_option_id": "00000000-0000-4000-8000-000000000226",
+                              "correct_option_id": "00000000-0000-4000-8000-000000000226",
+                              "is_correct": true,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000e2",
+                            "position": 27,
+                            "question_key": "S2-Q017",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-000000000146",
+                              "selected_option_id": "00000000-0000-4000-8000-000000000228",
+                              "correct_option_id": "00000000-0000-4000-8000-000000000228",
+                              "is_correct": true,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000e3",
+                            "position": 28,
+                            "question_key": "S2-Q018",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-000000000147",
+                              "selected_option_id": "00000000-0000-4000-8000-00000000022a",
+                              "correct_option_id": "00000000-0000-4000-8000-00000000022a",
+                              "is_correct": true,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000e4",
+                            "position": 29,
+                            "question_key": "S2-Q019",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-000000000148",
+                              "selected_option_id": "00000000-0000-4000-8000-00000000022c",
+                              "correct_option_id": "00000000-0000-4000-8000-00000000022c",
+                              "is_correct": true,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000e5",
+                            "position": 30,
+                            "question_key": "S2-Q020",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-000000000149",
+                              "selected_option_id": "00000000-0000-4000-8000-00000000022e",
+                              "correct_option_id": "00000000-0000-4000-8000-00000000022e",
+                              "is_correct": true,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000e6",
+                            "position": 31,
+                            "question_key": "S2-Q021",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-00000000014a",
+                              "selected_option_id": "00000000-0000-4000-8000-000000000230",
+                              "correct_option_id": "00000000-0000-4000-8000-000000000230",
+                              "is_correct": true,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000e7",
+                            "position": 32,
+                            "question_key": "S2-Q022",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-00000000014b",
+                              "selected_option_id": "00000000-0000-4000-8000-000000000232",
+                              "correct_option_id": "00000000-0000-4000-8000-000000000232",
+                              "is_correct": true,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000e8",
+                            "position": 33,
+                            "question_key": "S2-Q023",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-00000000014c",
+                              "selected_option_id": "00000000-0000-4000-8000-000000000234",
+                              "correct_option_id": "00000000-0000-4000-8000-000000000234",
+                              "is_correct": true,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000e9",
+                            "position": 34,
+                            "question_key": "S2-Q024",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-00000000014d",
+                              "selected_option_id": "00000000-0000-4000-8000-000000000236",
+                              "correct_option_id": "00000000-0000-4000-8000-000000000236",
+                              "is_correct": true,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000ea",
+                            "position": 35,
+                            "question_key": "S2-Q025",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-00000000014e",
+                              "selected_option_id": "00000000-0000-4000-8000-000000000238",
+                              "correct_option_id": "00000000-0000-4000-8000-000000000238",
+                              "is_correct": true,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000eb",
+                            "position": 36,
+                            "question_key": "S2-Q026",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-00000000014f",
+                              "selected_option_id": "00000000-0000-4000-8000-00000000023a",
+                              "correct_option_id": "00000000-0000-4000-8000-00000000023a",
+                              "is_correct": true,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000ec",
+                            "position": 37,
+                            "question_key": "S2-Q027",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-000000000150",
+                              "selected_option_id": "00000000-0000-4000-8000-00000000023d",
+                              "correct_option_id": "00000000-0000-4000-8000-00000000023c",
+                              "is_correct": false,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000ed",
+                            "position": 38,
+                            "question_key": "S2-Q028",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-000000000151",
+                              "selected_option_id": "00000000-0000-4000-8000-00000000023f",
+                              "correct_option_id": "00000000-0000-4000-8000-00000000023e",
+                              "is_correct": false,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000ee",
+                            "position": 39,
+                            "question_key": "S2-Q029",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-000000000152",
+                              "selected_option_id": "00000000-0000-4000-8000-000000000241",
+                              "correct_option_id": "00000000-0000-4000-8000-000000000240",
+                              "is_correct": false,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000ef",
+                            "position": 40,
+                            "question_key": "S2-Q030",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-000000000153",
+                              "selected_option_id": "00000000-0000-4000-8000-000000000243",
+                              "correct_option_id": "00000000-0000-4000-8000-000000000242",
+                              "is_correct": false,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000f0",
+                            "position": 41,
+                            "question_key": "S2-Q031",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-000000000154",
+                              "selected_option_id": "00000000-0000-4000-8000-000000000245",
+                              "correct_option_id": "00000000-0000-4000-8000-000000000244",
+                              "is_correct": false,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000f1",
+                            "position": 42,
+                            "question_key": "S2-Q032",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-000000000155",
+                              "selected_option_id": "00000000-0000-4000-8000-000000000247",
+                              "correct_option_id": "00000000-0000-4000-8000-000000000246",
+                              "is_correct": false,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000f2",
+                            "position": 43,
+                            "question_key": "S2-Q033",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-000000000156",
+                              "selected_option_id": "00000000-0000-4000-8000-000000000249",
+                              "correct_option_id": "00000000-0000-4000-8000-000000000248",
+                              "is_correct": false,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000f3",
+                            "position": 44,
+                            "question_key": "S2-Q034",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-000000000157",
+                              "selected_option_id": "00000000-0000-4000-8000-00000000024b",
+                              "correct_option_id": "00000000-0000-4000-8000-00000000024a",
+                              "is_correct": false,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000f4",
+                            "position": 45,
+                            "question_key": "S2-Q035",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-000000000158",
+                              "selected_option_id": "00000000-0000-4000-8000-00000000024d",
+                              "correct_option_id": "00000000-0000-4000-8000-00000000024c",
+                              "is_correct": false,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000f5",
+                            "position": 46,
+                            "question_key": "S2-Q036",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-000000000159",
+                              "selected_option_id": "00000000-0000-4000-8000-00000000024f",
+                              "correct_option_id": "00000000-0000-4000-8000-00000000024e",
+                              "is_correct": false,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000f6",
+                            "position": 47,
+                            "question_key": "S2-Q037",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-00000000015a",
+                              "selected_option_id": "00000000-0000-4000-8000-000000000251",
+                              "correct_option_id": "00000000-0000-4000-8000-000000000250",
+                              "is_correct": false,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000f7",
+                            "position": 48,
+                            "question_key": "S2-Q038",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-00000000015b",
+                              "selected_option_id": "00000000-0000-4000-8000-000000000253",
+                              "correct_option_id": "00000000-0000-4000-8000-000000000252",
+                              "is_correct": false,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000f8",
+                            "position": 49,
+                            "question_key": "S2-Q039",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-00000000015c",
+                              "selected_option_id": null,
+                              "correct_option_id": "00000000-0000-4000-8000-000000000254",
+                              "is_correct": false,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          },
+                          {
+                            "item_id": "00000000-0000-4000-8000-0000000000f9",
+                            "position": 50,
+                            "question_key": "S2-Q040",
+                            "subject_id": 2,
+                            "outcome": {
+                              "attempt_id": "00000000-0000-4000-8000-00000000015d",
+                              "selected_option_id": null,
+                              "correct_option_id": "00000000-0000-4000-8000-000000000256",
+                              "is_correct": false,
+                              "graded_at": "2026-10-28T02:30:00Z"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "접속 세션 누락·만료 또는 로그인 필요",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "허용하지 않는 Origin 또는 Content-Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "존재하지 않거나 접근 권한이 없는 리소스",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "상태·답안 revision·생성 조건 충돌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "필드 또는 업무 규칙 검증 실패",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "요청 한도 초과. Retry-After 확인",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "재시도까지 초"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "일시적 서버·외부 인증 장애 또는 출제 가능 문항 부족",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "그 외 오류도 ErrorResponse 사용. 내부 예외·토큰은 노출하지 않는다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SessionId"
+          }
+        ]
+      }
+    },
+    "/me/stats": {
+      "get": {
+        "operationId": "getMyStats",
+        "tags": [
+          "내 기록"
+        ],
+        "summary": "문항별 최신 정오답 통계",
+        "description": "user만 허용. user_id를 입력받지 않는다. 만료 mock을 먼저 반영하고 question_key별 최신 유효 graded_at,id 한 건을 집계한다. 백분율 소수점 첫째 자리 반올림, 분모 0이면 0.0. mock 미응답은 오답·채점 문항에 포함.",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "개인·접속 응답은 private, no-store. 공개 catalog는 public, max-age=60."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatsResponse"
+                },
+                "examples": {
+                  "sample": {
+                    "summary": "가상 데이터 예시. 원문·실제 사용자 데이터가 아님",
+                    "value": {
+                      "server_now": "2026-10-28T01:00:00Z",
+                      "overall": {
+                        "graded_question_count": 3,
+                        "correct_question_count": 2,
+                        "wrong_question_count": 1,
+                        "accuracy_percent": 66.7
+                      },
+                      "subjects": [
+                        {
+                          "subject_id": 1,
+                          "counts": {
+                            "graded_question_count": 3,
+                            "correct_question_count": 2,
+                            "wrong_question_count": 1,
+                            "accuracy_percent": 66.7
+                          }
+                        },
+                        {
+                          "subject_id": 2,
+                          "counts": {
+                            "graded_question_count": 0,
+                            "correct_question_count": 0,
+                            "wrong_question_count": 0,
+                            "accuracy_percent": 0
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "접속 세션 누락·만료 또는 로그인 필요",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "요청 한도 초과. Retry-After 확인",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "재시도까지 초"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "일시적 서버·외부 인증 장애 또는 출제 가능 문항 부족",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "그 외 오류도 ErrorResponse 사용. 내부 예외·토큰은 노출하지 않는다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-login-required": true
+      }
+    },
+    "/me/wrong-answers": {
+      "get": {
+        "operationId": "listMyWrongAnswers",
+        "tags": [
+          "내 기록"
+        ],
+        "summary": "현재 오답 목록",
+        "description": "user만 허용. 마지막 유효 결과가 오답인 question_key. last_graded_at DESC,question_key ASC. 현재 published 버전 없으면 available=false, current_question_id/current_version=null. 문제풀이 시작은 study create wrong_answers 사용. 개인 목록은 페이지 사이에 학습하면 변할 수 있어 중복 key를 합치고 채점 후 첫 페이지부터 갱신한다.",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "개인·접속 응답은 private, no-store. 공개 catalog는 public, max-age=60."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WrongAnswersResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "잘못된 커서 또는 OAuth 입력",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "접속 세션 누락·만료 또는 로그인 필요",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "필드 또는 업무 규칙 검증 실패",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "요청 한도 초과. Retry-After 확인",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "재시도까지 초"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "일시적 서버·외부 인증 장애 또는 출제 가능 문항 부족",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "그 외 오류도 ErrorResponse 사용. 내부 예외·토큰은 노출하지 않는다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SubjectId"
+          },
+          {
+            "$ref": "#/components/parameters/ChapterId"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          }
+        ],
+        "x-login-required": true
+      }
+    },
+    "/me/mock-sessions": {
+      "get": {
+        "operationId": "listMyMockHistory",
+        "tags": [
+          "내 기록"
+        ],
+        "summary": "지난 모의시험 이력",
+        "description": "user만 허용. status 생략 시 completed/abandoned 모두. finished_at DESC,id DESC. 만료 mock은 먼저 반영. abandoned의 summary=null. 조회 시점 사이에 새 timeout 결과가 생기면 첫 페이지부터 갱신한다.",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "개인·접속 응답은 private, no-store. 공개 catalog는 public, max-age=60."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MockHistoryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "잘못된 커서 또는 OAuth 입력",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "접속 세션 누락·만료 또는 로그인 필요",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "필드 또는 업무 규칙 검증 실패",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "요청 한도 초과. Retry-After 확인",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "재시도까지 초"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "일시적 서버·외부 인증 장애 또는 출제 가능 문항 부족",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "그 외 오류도 ErrorResponse 사용. 내부 예외·토큰은 노출하지 않는다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "completed",
+                "abandoned"
+              ]
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          }
+        ],
+        "x-login-required": true
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "browserSession": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "sqld_session",
+        "description": "HttpOnly; Secure(운영); SameSite=Lax; Path=/. 고엔트로피 opaque 토큰. guest/user 양쪽 접속에 사용하며 로그인 필수 여부는 작업 설명으로 구분."
+      }
+    },
+    "parameters": {
+      "SessionId": {
+        "name": "session_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "ItemId": {
+        "name": "item_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "Cursor": {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        },
+        "description": "서버 발급 불투명 커서. 검색 조건이 바뀌면 폐기."
+      },
+      "Limit": {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20
+        }
+      },
+      "SubjectId": {
+        "name": "subject_id",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "ChapterId": {
+        "name": "chapter_id",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "schemas": {
+      "TextBlock": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "const": "text",
+            "type": "string"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "type",
+          "text"
+        ],
+        "additionalProperties": false
+      },
+      "SqlBlock": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "const": "sql",
+            "type": "string"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "type",
+          "text"
+        ],
+        "additionalProperties": false
+      },
+      "ImageBlock": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "const": "image",
+            "type": "string"
+          },
+          "src": {
+            "type": "string",
+            "description": "같은 출처의 불변 이미지 경로. 문항 버전 포함.",
+            "pattern": "^/question-assets/"
+          },
+          "alt": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "type",
+          "src",
+          "alt"
+        ],
+        "additionalProperties": false
+      },
+      "ContentBlock": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/TextBlock"
+          },
+          {
+            "$ref": "#/components/schemas/SqlBlock"
+          },
+          {
+            "$ref": "#/components/schemas/ImageBlock"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type",
+          "mapping": {
+            "text": "#/components/schemas/TextBlock",
+            "sql": "#/components/schemas/SqlBlock",
+            "image": "#/components/schemas/ImageBlock"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "기계 판별용 고정 오류 코드"
+              },
+              "message": {
+                "type": "string",
+                "description": "사용자에게 표시 가능한 한국어 설명"
+              },
+              "request_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "details": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "details"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "display_name"
+        ],
+        "additionalProperties": false
+      },
+      "Viewer": {
+        "type": "object",
+        "properties": {
+          "viewer_type": {
+            "type": "string",
+            "enum": [
+              "guest",
+              "user"
+            ]
+          },
+          "viewer_key": {
+            "type": "string",
+            "pattern": "^(guest|user):[0-9a-f-]{36}$",
+            "description": "캐시 구분 값. guest:<browser_session.id> 또는 user:<users.id>. 토큰이 아니며 로그인·로그아웃 때 반드시 달라진다."
+          },
+          "user": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/User"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "viewer_type",
+          "viewer_key",
+          "user",
+          "expires_at"
+        ],
+        "additionalProperties": false,
+        "description": "guest는 user=null, user는 user 객체가 필수. 로그인 성공 시 기존 browser_session 행의 user_id·token_hash를 변경하며 접속 행 ID를 바꾸지 않는다. viewer_key는 접속 ID 자체가 아니라 guest/user 소유자 구분 값이다."
+      },
+      "ViewerResponse": {
+        "type": "object",
+        "properties": {
+          "server_now": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "viewer": {
+            "$ref": "#/components/schemas/Viewer"
+          }
+        },
+        "required": [
+          "server_now",
+          "viewer"
+        ],
+        "additionalProperties": false
+      },
+      "Chapter": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "name": {
+            "type": "string"
+          },
+          "display_order": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "published_question_count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "display_order",
+          "published_question_count"
+        ],
+        "additionalProperties": false
+      },
+      "Subject": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "name": {
+            "type": "string"
+          },
+          "display_order": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "published_question_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "chapters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Chapter"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "display_order",
+          "published_question_count",
+          "chapters"
+        ],
+        "additionalProperties": false
+      },
+      "MockPolicySubject": {
+        "type": "object",
+        "properties": {
+          "subject_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "question_count": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "points_per_question": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "minimum_score": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "subject_id",
+          "question_count",
+          "points_per_question",
+          "minimum_score"
+        ],
+        "additionalProperties": false
+      },
+      "MockPolicy": {
+        "type": "object",
+        "properties": {
+          "question_count": {
+            "const": 50,
+            "type": "integer"
+          },
+          "duration_seconds": {
+            "const": 5400,
+            "type": "integer"
+          },
+          "passing_score": {
+            "const": 60,
+            "type": "integer"
+          },
+          "subjects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MockPolicySubject"
+            },
+            "minItems": 2,
+            "maxItems": 2
+          }
+        },
+        "required": [
+          "question_count",
+          "duration_seconds",
+          "passing_score",
+          "subjects"
+        ],
+        "additionalProperties": false
+      },
+      "CatalogResponse": {
+        "type": "object",
+        "properties": {
+          "subjects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Subject"
+            }
+          },
+          "question_types": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "single_choice"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 1
+          },
+          "mock_policy": {
+            "$ref": "#/components/schemas/MockPolicy"
+          }
+        },
+        "required": [
+          "subjects",
+          "question_types",
+          "mock_policy"
+        ],
+        "additionalProperties": false
+      },
+      "StudyAll": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "const": "all"
+          }
+        },
+        "required": [
+          "scope"
+        ],
+        "additionalProperties": false
+      },
+      "StudySubjects": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "const": "subjects"
+          },
+          "subject_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "scope",
+          "subject_ids"
+        ],
+        "additionalProperties": false
+      },
+      "StudyChapters": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "const": "chapters"
+          },
+          "chapter_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "scope",
+          "chapter_ids"
+        ],
+        "additionalProperties": false
+      },
+      "StudyWrong": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "const": "wrong_answers"
+          },
+          "subject_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "chapter_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "scope"
+        ],
+        "additionalProperties": false
+      },
+      "StudyPrevious": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "const": "previous_session"
+          },
+          "previous_session_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "scope",
+          "previous_session_id"
+        ],
+        "additionalProperties": false
+      },
+      "StudyCreateRequest": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/StudyAll"
+          },
+          {
+            "$ref": "#/components/schemas/StudySubjects"
+          },
+          {
+            "$ref": "#/components/schemas/StudyChapters"
+          },
+          {
+            "$ref": "#/components/schemas/StudyWrong"
+          },
+          {
+            "$ref": "#/components/schemas/StudyPrevious"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "scope",
+          "mapping": {
+            "all": "#/components/schemas/StudyAll",
+            "subjects": "#/components/schemas/StudySubjects",
+            "chapters": "#/components/schemas/StudyChapters",
+            "wrong_answers": "#/components/schemas/StudyWrong",
+            "previous_session": "#/components/schemas/StudyPrevious"
+          }
+        }
+      },
+      "EmptyRequest": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "Session": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "study",
+              "mock"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "completed",
+              "abandoned"
+            ]
+          },
+          "owner_type": {
+            "type": "string",
+            "enum": [
+              "guest",
+              "user"
+            ]
+          },
+          "current_position": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "item_count": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "answered_item_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "graded_item_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deadline_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "finish_reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "manual",
+                  "timeout",
+                  "abandoned"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "study_filter": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StudyCreateRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "mode",
+          "status",
+          "owner_type",
+          "current_position",
+          "item_count",
+          "answered_item_count",
+          "graded_item_count",
+          "started_at",
+          "deadline_at",
+          "finished_at",
+          "finish_reason",
+          "study_filter"
+        ],
+        "additionalProperties": false
+      },
+      "NavigatorItem": {
+        "type": "object",
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "position": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "question_key": {
+            "type": "string"
+          },
+          "subject_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "chapter_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "answered": {
+            "type": "boolean"
+          },
+          "graded": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "item_id",
+          "position",
+          "question_key",
+          "subject_id",
+          "chapter_id",
+          "answered",
+          "graded"
+        ],
+        "additionalProperties": false
+      },
+      "SessionResponse": {
+        "type": "object",
+        "properties": {
+          "server_now": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "session": {
+            "$ref": "#/components/schemas/Session"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NavigatorItem"
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "server_now",
+          "session",
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "ActiveSessionsResponse": {
+        "type": "object",
+        "properties": {
+          "server_now": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sessions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Session"
+            }
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "server_now",
+          "sessions",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "PositionRequest": {
+        "type": "object",
+        "properties": {
+          "current_position": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "current_position"
+        ],
+        "additionalProperties": false
+      },
+      "Option": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "option_number": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "content_blocks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContentBlock"
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "id",
+          "option_number",
+          "content_blocks"
+        ],
+        "additionalProperties": false
+      },
+      "Question": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "question_key": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "subject_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "chapter_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "source_number": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "type": {
+            "type": "string",
+            "const": "single_choice"
+          },
+          "content_blocks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContentBlock"
+            },
+            "minItems": 1
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Option"
+            },
+            "minItems": 2
+          }
+        },
+        "required": [
+          "id",
+          "question_key",
+          "version",
+          "subject_id",
+          "chapter_id",
+          "source_number",
+          "type",
+          "content_blocks",
+          "options"
+        ],
+        "additionalProperties": false
+      },
+      "Attempt": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "attempt_number": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "selected_option_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "graded"
+            ]
+          },
+          "graded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "attempt_number",
+          "selected_option_id",
+          "revision",
+          "status",
+          "graded_at"
+        ],
+        "additionalProperties": false
+      },
+      "Review": {
+        "type": "object",
+        "properties": {
+          "is_correct": {
+            "type": "boolean"
+          },
+          "correct_option_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "explanation_blocks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContentBlock"
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "is_correct",
+          "correct_option_id",
+          "explanation_blocks"
+        ],
+        "additionalProperties": false
+      },
+      "QuizItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "position": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "question": {
+            "$ref": "#/components/schemas/Question"
+          },
+          "attempt": {
+            "$ref": "#/components/schemas/Attempt"
+          },
+          "review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Review"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "position",
+          "question",
+          "attempt",
+          "review"
+        ],
+        "additionalProperties": false
+      },
+      "ItemResponse": {
+        "type": "object",
+        "properties": {
+          "server_now": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "session_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "session_status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "completed",
+              "abandoned"
+            ]
+          },
+          "item": {
+            "$ref": "#/components/schemas/QuizItem"
+          }
+        },
+        "required": [
+          "server_now",
+          "session_id",
+          "session_status",
+          "item"
+        ],
+        "additionalProperties": false
+      },
+      "SaveAnswerRequest": {
+        "type": "object",
+        "properties": {
+          "attempt_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "selected_option_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "attempt_id",
+          "expected_revision",
+          "selected_option_id"
+        ],
+        "additionalProperties": false
+      },
+      "GradeRequest": {
+        "type": "object",
+        "properties": {
+          "attempt_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "attempt_id",
+          "expected_revision"
+        ],
+        "additionalProperties": false
+      },
+      "GradeResponse": {
+        "type": "object",
+        "properties": {
+          "server_now": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "session_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "item_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "attempt": {
+            "$ref": "#/components/schemas/Attempt"
+          },
+          "review": {
+            "$ref": "#/components/schemas/Review"
+          }
+        },
+        "required": [
+          "server_now",
+          "session_id",
+          "item_id",
+          "attempt",
+          "review"
+        ],
+        "additionalProperties": false
+      },
+      "RetryRequest": {
+        "type": "object",
+        "properties": {
+          "previous_attempt_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "previous_attempt_id"
+        ],
+        "additionalProperties": false
+      },
+      "RetryResponse": {
+        "type": "object",
+        "properties": {
+          "server_now": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "session_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "item_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "attempt": {
+            "$ref": "#/components/schemas/Attempt"
+          }
+        },
+        "required": [
+          "server_now",
+          "session_id",
+          "item_id",
+          "attempt"
+        ],
+        "additionalProperties": false
+      },
+      "SubmitRequest": {
+        "type": "object",
+        "properties": {
+          "expected_unanswered_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 50
+          }
+        },
+        "required": [
+          "expected_unanswered_count"
+        ],
+        "additionalProperties": false
+      },
+      "Outcome": {
+        "type": "object",
+        "properties": {
+          "attempt_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "selected_option_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "correct_option_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "is_correct": {
+            "type": "boolean"
+          },
+          "graded_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "attempt_id",
+          "selected_option_id",
+          "correct_option_id",
+          "is_correct",
+          "graded_at"
+        ],
+        "additionalProperties": false
+      },
+      "ResultItem": {
+        "type": "object",
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "position": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "question_key": {
+            "type": "string"
+          },
+          "subject_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Outcome"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "item_id",
+          "position",
+          "question_key",
+          "subject_id",
+          "outcome"
+        ],
+        "additionalProperties": false
+      },
+      "StudySummary": {
+        "type": "object",
+        "properties": {
+          "item_count": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "graded_item_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "correct_item_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "incorrect_item_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "ungraded_item_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "accuracy_percent": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "item_count",
+          "graded_item_count",
+          "correct_item_count",
+          "incorrect_item_count",
+          "ungraded_item_count",
+          "accuracy_percent"
+        ],
+        "additionalProperties": false
+      },
+      "SubjectScore": {
+        "type": "object",
+        "properties": {
+          "subject_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "question_count": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "correct_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "score": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "maximum_score": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "minimum_score": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "passed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "subject_id",
+          "question_count",
+          "correct_count",
+          "score",
+          "maximum_score",
+          "minimum_score",
+          "passed"
+        ],
+        "additionalProperties": false
+      },
+      "MockSummary": {
+        "type": "object",
+        "properties": {
+          "item_count": {
+            "type": "integer",
+            "const": 50
+          },
+          "answered_item_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 50
+          },
+          "unanswered_item_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 50
+          },
+          "correct_item_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 50
+          },
+          "incorrect_item_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 50
+          },
+          "score": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "maximum_score": {
+            "type": "integer",
+            "const": 100
+          },
+          "accuracy_percent": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "subjects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubjectScore"
+            },
+            "minItems": 2,
+            "maxItems": 2
+          }
+        },
+        "required": [
+          "item_count",
+          "answered_item_count",
+          "unanswered_item_count",
+          "correct_item_count",
+          "incorrect_item_count",
+          "score",
+          "maximum_score",
+          "accuracy_percent",
+          "passed",
+          "subjects"
+        ],
+        "additionalProperties": false
+      },
+      "StudyResult": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "const": "study"
+          },
+          "session": {
+            "$ref": "#/components/schemas/Session"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/StudySummary"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResultItem"
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "mode",
+          "session",
+          "summary",
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "MockResult": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "const": "mock"
+          },
+          "session": {
+            "$ref": "#/components/schemas/Session"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/MockSummary"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResultItem"
+            },
+            "minItems": 50,
+            "maxItems": 50
+          }
+        },
+        "required": [
+          "mode",
+          "session",
+          "summary",
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "ResultResponse": {
+        "type": "object",
+        "properties": {
+          "server_now": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "result": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/StudyResult"
+              },
+              {
+                "$ref": "#/components/schemas/MockResult"
+              }
+            ],
+            "discriminator": {
+              "propertyName": "mode",
+              "mapping": {
+                "study": "#/components/schemas/StudyResult",
+                "mock": "#/components/schemas/MockResult"
+              }
+            }
+          }
+        },
+        "required": [
+          "server_now",
+          "result"
+        ],
+        "additionalProperties": false
+      },
+      "Counts": {
+        "type": "object",
+        "properties": {
+          "graded_question_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "correct_question_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "wrong_question_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "accuracy_percent": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "graded_question_count",
+          "correct_question_count",
+          "wrong_question_count",
+          "accuracy_percent"
+        ],
+        "additionalProperties": false
+      },
+      "SubjectStats": {
+        "type": "object",
+        "properties": {
+          "subject_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "counts": {
+            "$ref": "#/components/schemas/Counts"
+          }
+        },
+        "required": [
+          "subject_id",
+          "counts"
+        ],
+        "additionalProperties": false
+      },
+      "StatsResponse": {
+        "type": "object",
+        "properties": {
+          "server_now": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "overall": {
+            "$ref": "#/components/schemas/Counts"
+          },
+          "subjects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubjectStats"
+            }
+          }
+        },
+        "required": [
+          "server_now",
+          "overall",
+          "subjects"
+        ],
+        "additionalProperties": false
+      },
+      "WrongQuestion": {
+        "type": "object",
+        "properties": {
+          "question_key": {
+            "type": "string"
+          },
+          "current_question_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "current_version": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "subject_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "chapter_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "source_number": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "last_graded_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_mode": {
+            "type": "string",
+            "enum": [
+              "study",
+              "mock"
+            ]
+          }
+        },
+        "required": [
+          "question_key",
+          "current_question_id",
+          "current_version",
+          "subject_id",
+          "chapter_id",
+          "source_number",
+          "available",
+          "last_graded_at",
+          "last_mode"
+        ],
+        "additionalProperties": false
+      },
+      "WrongAnswersResponse": {
+        "type": "object",
+        "properties": {
+          "server_now": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WrongQuestion"
+            }
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "server_now",
+          "items",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "MockHistoryEntry": {
+        "type": "object",
+        "properties": {
+          "session": {
+            "$ref": "#/components/schemas/Session"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MockSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "session",
+          "summary"
+        ],
+        "additionalProperties": false
+      },
+      "MockHistoryResponse": {
+        "type": "object",
+        "properties": {
+          "server_now": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MockHistoryEntry"
+            }
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "server_now",
+          "items",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "KakaoStartRequest": {
+        "type": "object",
+        "properties": {
+          "return_to": {
+            "type": "string",
+            "description": "동일 출처의 상대 경로. //, 역슬래시, 제어문자, 외부 URL은 거부.",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "claim_session_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "return_to",
+          "claim_session_id"
+        ],
+        "additionalProperties": false
+      },
+      "KakaoStartResponse": {
+        "type": "object",
+        "properties": {
+          "authorize_url": {
+            "type": "string",
+            "description": "서버가 구성한 카카오 인가 URL",
+            "format": "uri"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "authorize_url",
+          "expires_at"
+        ],
+        "additionalProperties": false
+      }
+    }
+  }
+}
