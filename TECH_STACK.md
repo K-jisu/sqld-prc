@@ -1,6 +1,6 @@
 # SQLD Practice 기술 스택
 
-최종 정리: 2026-11-03
+최종 정리: 2026-11-04
 
 프로젝트 위치: `C:\Users\wltn7\Desktop\sqld-prc`
 
@@ -31,7 +31,7 @@
 - 패키지 관리자는 pnpm이다.
 - 화면 디자인과 배치는 AI가 만든 결과를 보고 사용자가 판단한다.
 
-현재 `frontend/package.json`에 선언된 버전은 다음과 같다. 이 목록은 설치·빌드 성공을 검증한 결과는 아니다.
+현재 `frontend/package.json`에 선언된 버전은 다음과 같다. 2026-11-04에 고정 버전 설치, lint, 타입 검사, 프로덕션 빌드와 개발 서버의 기본 페이지 HTTP 200 응답을 확인했다.
 
 | 패키지 | 선언된 버전 |
 |---|---|
@@ -42,12 +42,14 @@
 | @tailwindcss/turbopack | ^4 |
 | eslint | ^9 |
 | eslint-config-next | 16.4.4 |
+| @tanstack/react-query | ^5.105.3 |
+| pnpm (packageManager) | 10.32.1 |
 
-TanStack Query는 기술 선택에는 포함되지만 현재 프론트 의존성 목록에는 아직 없다.
+TanStack Query는 의존성에 추가했다. Provider와 실제 API 연결은 화면 연동 단계에서 구현한다. 전역 pnpm 실행기가 잘못된 설치 경로를 가리키는 환경에서는 `npx --yes pnpm@10.32.1 <명령>`으로 같은 버전을 실행한다.
 
 ## 3. 백엔드
 
-FastAPI를 중심으로 기존 DB·API 설계에서 잡은 구성이다. 아래 목록은 패키지 설치 완료를 뜻하지 않는다.
+FastAPI를 중심으로 기존 DB·API 설계에서 잡은 구성이다. FastAPI·SQLModel·psycopg·Alembic은 런타임 의존성, pytest는 개발 의존성으로 설치했다. Pydantic은 FastAPI 의존성으로 함께 설치된다.
 
 | 기술 | 역할 |
 |---|---|
@@ -56,15 +58,16 @@ FastAPI를 중심으로 기존 DB·API 설계에서 잡은 구성이다. 아래 
 | SQLModel | Python 코드와 DB 테이블·조회 연결 |
 | psycopg 3 | PostgreSQL 연결 드라이버 |
 | Alembic | DB 테이블 구조 변경 이력 관리 |
+| pytest | 백엔드 개발 테스트 |
 
 - API는 REST·JSON 방식이며 브라우저 기준 경로는 `/api/v1`이다.
 - 프론트와 백엔드를 별도 배포해도 브라우저는 같은 출처의 API 경로를 사용하도록 연결한다.
 - DB 연결 정보와 카카오 인증 비밀은 백엔드에서만 관리한다.
 - 로그인 상태는 서버 접속 세션과 HttpOnly 쿠키로 관리한다.
 - Python 의존성은 프로젝트 전용 가상환경으로 분리한다.
-- 사용자가 백엔드 세팅에 uv를 사용 중이다. uv로 초기화하면 `pyproject.toml`, `uv.lock`, `.venv/`를 사용하게 된다.
+- 백엔드 패키지 관리자는 uv다. `pyproject.toml`, `uv.lock`, `.venv/`로 선언·잠금·가상환경을 관리한다.
 
-문서 작성 시점에 `backend/pyproject.toml`은 확인되지 않았다. Python 프로젝트 초기화와 패키지 설치 결과는 다음 단계에서 확인한다. Python의 프로젝트 고정 버전도 의존성·배포 환경과의 호환성을 확인한 뒤 정한다.
+uv 프로젝트 초기화와 의존성 설치를 확인했다. 현재 `requires-python`은 `>=3.14`, `.python-version`은 `3.14`이며 로컬 검증은 Python 3.14.3에서 진행했다. 기본 라이브러리 import와 FastAPI 시작·OpenAPI 응답 테스트 1개가 통과했다. 배포 환경의 Python 호환성은 배포 단계에서 확인한다.
 
 ## 4. 데이터베이스와 인증
 
@@ -80,7 +83,7 @@ FastAPI를 중심으로 기존 DB·API 설계에서 잡은 구성이다. 아래 
 | 프론트 배포 | 기존 검토안은 Vercel. 실제 배포 설정은 아직 확인하지 않음 |
 | 백엔드 배포 | 기존 검토안은 Vercel의 FastAPI 배포. 최종 설정과 호환성은 배포 단계에서 확인 |
 | DB 배포 | Neon 사용으로 결정. 무료 플랜으로 시작하는 방향이며 실제 한도는 사용 시 확인 |
-| 백엔드 테스트 | pytest 도입을 제안한 상태 |
+| 백엔드 테스트 | pytest 설치, 앱 시작·OpenAPI 응답 테스트 1개 통과 |
 | 브라우저 테스트 | Playwright로 주요 흐름 검증을 제안한 상태 |
 
 ## 6. 프로젝트 구조와 진행 방식

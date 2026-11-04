@@ -32,18 +32,29 @@
 
 ## 1. 개발 환경 정리
 
-- [ ] 프론트에서 `pnpm dev`를 실행해 기본 화면 확인
-- [ ] 프론트 package.json에 사용할 pnpm 버전을 기록하고 같은 버전으로 설치 재현 확인
-- [ ] TanStack Query를 추가하고 실제 package.json·lockfile 반영 확인 — 현재 확인한 의존성 목록에는 없음
-- [ ] 프론트 lint·TypeScript 검사·프로덕션 빌드를 실행하고 사용하는 명령을 README에 기록
-- [ ] 백엔드의 공식 실행 명령을 README에 기록: backend에서 `uv run fastapi dev src/backend/main.py`
-- [ ] .gitignore에 가상환경·node_modules·캐시·빌드 결과·비밀 환경변수 파일이 제외되는지 확인
-- [ ] pnpm-lock.yaml과 uv.lock은 버전 관리에 포함
-- [ ] 필요한 환경변수 이름만 적은 예제 파일 준비 — 실제 접속 비밀은 넣지 않음
-- [ ] 백엔드 의존성이 필요한 단계에서 SQLModel·psycopg·Alembic·pytest를 추가하고 import/실행 확인
-- [ ] TECH_STACK.md의 설치 상태를 갱신 — uv 초기화·FastAPI 설치 완료, uv 사용, 추가한 프론트 의존성 반영
+완료일: 2026-11-04
+
+- [x] 프론트 개발 서버 실행과 기본 페이지 확인 — pnpm dev, 로컬 3100 포트에서 HTTP 200과 기본 템플릿 내용 확인 후 종료
+- [x] 프론트 package.json에 pnpm 10.32.1 고정, `install --frozen-lockfile` 재현 확인
+- [x] TanStack Query 5.105.3 추가와 package.json·pnpm-lock.yaml 반영 확인
+- [x] 프론트 lint·TypeScript 검사·프로덕션 빌드 통과, README에 명령 기록
+- [x] 백엔드 실행 명령을 README에 기록: backend에서 `uv run fastapi dev src/backend/main.py`
+- [x] .gitignore에 가상환경·node_modules·캐시·빌드 결과·실제 환경변수 파일 제외 확인 — Git 추적 중인 생성 파일·실제 .env 파일 없음
+- [x] frontend/pnpm-lock.yaml과 backend/uv.lock은 기존 Git 추적 상태 유지, 중복 npm package-lock.json 제거
+- [x] frontend/.env.example과 backend/.env.example 작성, 비밀 값 없이 변수 이름·로컬 예시만 기록하고 Git 제외 대상이 아님을 확인
+- [x] SQLModel·psycopg·Alembic 런타임 의존성과 pytest 개발 의존성 추가, 프로젝트 Python에서 import 확인 및 테스트 1개 통과
+- [x] TECH_STACK.md의 초기화·설치·패키지 관리·검증 상태 갱신
 
 완료 기준: 두 프로젝트의 실행 방법이 문서화되고, 프론트 정적 검사·빌드가 통과하며 비밀과 생성 파일이 Git에 포함되지 않는다.
+
+검증 기록:
+
+- 프론트: pnpm 10.32.1 고정 설치, lint, typecheck, build 모두 종료 코드 0.
+- 프론트 개발 서버: `/` HTTP 200 및 기본 템플릿 본문 확인. 브라우저의 시각적 디자인 검증은 아직 하지 않음.
+- 백엔드: `uv run --locked pytest -q`에서 1 passed. FastAPI·Pydantic·SQLModel·psycopg·Alembic import 확인.
+- Git: 잠금파일 2개는 추적 중이며 예제 환경변수 파일은 관리 가능. 실제 .env·가상환경·캐시·node_modules·빌드 결과는 제외.
+- 이 환경의 전역 pnpm 실행기 경로 문제로 프론트 검증은 `npx --yes pnpm@10.32.1 <명령>`을 사용. 실행 방법은 README에 기록했고 전역 설치는 변경하지 않음.
+- DB 연결·기능 API·화면 연동은 아직 진행하지 않음. 임시 검증 서버는 종료했고 커밋·푸시는 하지 않음.
 
 ## 2. PDF 샘플 데이터 검증
 
@@ -181,4 +192,4 @@
 4. 로그인 취소·재시도·여러 탭 경쟁: 7단계에서 state·토큰 회전·현재 풀이 연결 검증.
 5. 문항 수정으로 과거 기록 변경: 2·3·6·9단계에서 문항 버전과 이미지 보존 검증.
 
-이번 작업에서 구현·패키지 추가·DB 연결·서버 실행은 하지 않았다. 체크한 서버 실행 항목은 사용자의 성공 확인에 근거하며, AI가 별도로 서버를 다시 실행한 결과는 아니다.
+0단계의 최초 백엔드 서버 실행 체크는 사용자의 성공 확인에 근거한다. 2026-11-04에는 1단계 범위에서 개발 의존성·설정·문서를 정리하고 위 검증을 직접 실행했다. 2~10단계의 기능 구현·DB 연결·배포는 아직 진행하지 않았다.
