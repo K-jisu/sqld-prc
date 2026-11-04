@@ -1,10 +1,12 @@
 # SQLD Practice
 
-SQLD 문제풀이와 모의시험을 준비하는 프로젝트입니다.
+SQLD 문제풀이와 모의시험을 혼자 공부하기 위한 개인 학습 앱입니다. PC와 모바일에서 쓰기 위해 비공개로 배포하며, 비밀번호로 로그인해야 문항과 기록을 볼 수 있습니다.
 
 - 프론트: Next.js App Router, React, TypeScript, Tailwind CSS, TanStack Query
 - 백엔드: Python, FastAPI, SQLModel, psycopg, Alembic
 - DB 계획: Neon PostgreSQL
+
+이 저장소는 공개 상태입니다. 교재 PDF·변환한 문항 데이터·문항 이미지는 커밋하지 않습니다.
 
 ## 개발 실행
 
@@ -59,7 +61,7 @@ uv run pytest -q
 
 ## 환경변수와 Git
 
-각 프로젝트의 `.env.example`을 기준으로 필요한 값을 정합니다. 실제 `.env`, 가상환경, node_modules, 빌드 결과와 캐시는 Git에서 제외하고 `frontend/pnpm-lock.yaml`, `backend/uv.lock`은 포함합니다. API 연결·DB·로그인 구현에서 예제 변수들을 실제로 연결합니다.
+각 프로젝트의 `.env.example`을 기준으로 필요한 값을 정합니다. 실제 `.env`, 교재 PDF, 가상환경, node_modules, 빌드 결과와 캐시는 Git에서 제외하고 `frontend/pnpm-lock.yaml`, `backend/uv.lock`은 포함합니다. API 연결·DB·로그인 구현에서 예제 변수들을 실제로 연결합니다.
 
 ## 설계와 진행
 

@@ -26,6 +26,9 @@ build/
 *.log
 settings.json
 
+# 교재 원본은 공개 저장소에 올리지 않는다
+*.pdf
+
 # OS files
 .DS_Store
 Thumbs.db
