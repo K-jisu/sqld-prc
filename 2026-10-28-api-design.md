@@ -1,6 +1,6 @@
 # SQLD 개인 학습 앱 API 명세
 
-작성일: 2026-10-28 / 수정일: 2026-11-04 — 공개 사이트 기준에서 혼자 쓰는 비공개 배포 기준으로 변경 / 버전: v1 설계 계약. 실제 서버에서 생성한 명세가 아니다.
+작성일: 2026-10-28 / 수정일: 2026-11-11 — 4단계 학습 API 구현 계약. OpenAPI JSON은 현재 FastAPI에서 생성한다. 모의시험·통계 관련 절은 6·7단계의 구현 계획이다.
 
 - 사람용 문서: 이 파일.
 - 기계용 계약: [OpenAPI 3.1 JSON](2026-10-28-openapi.json).
@@ -10,28 +10,26 @@
 
 ## 1. 범위와 접근 방식
 
-본인 한 명이 PC와 모바일에서 쓰는 비공개 앱이다. 비밀번호로 로그인한 뒤 학습·채점·해설·모의시험·결과·개인 통계·오답·시험 이력을 이용하고, 어느 기기에서든 같은 기록을 이어 푼다. 통계는 동일 문항의 최신 유효 채점 결과 한 건만 사용한다.
+본인 한 명이 PC와 모바일에서 쓰는 비공개 앱이다. 배포 플랫폼에서 본인 접근을 확인한 뒤 학습·채점·해설·모의시험·결과·개인 통계·오답·시험 이력을 이용하고, 어느 기기에서든 같은 기록을 이어 푼다. 통계는 동일 문항의 최신 유효 채점 결과 한 건만 사용한다.
 
-REST·JSON과 로그인 쿠키를 사용한다. 기존 FastAPI·관계형 DB 구조에 맞고, 화면 구성과 독립적인 데이터 계약을 만들 수 있기 때문이다. GraphQL, 브라우저 보관 Bearer 토큰, WebSocket은 현재 기능에 필요하지 않아 추가하지 않는다. 게스트·회원가입·소셜 로그인·SQL 실행기·관리자 화면·임의 PDF 업로드·AI 해설·결제 API도 이번 범위에 없다.
+REST·JSON을 사용하고 앱 자체 인증은 두지 않는다. 기존 FastAPI·관계형 DB 구조에 맞고, 화면 구성과 독립적인 데이터 계약을 만들 수 있기 때문이다. GraphQL, 브라우저 보관 Bearer 토큰, WebSocket은 현재 기능에 필요하지 않아 추가하지 않는다. 게스트·회원가입·소셜 로그인·SQL 실행기·관리자 화면·임의 PDF 업로드·AI 해설·결제 API도 이번 범위에 없다.
 
 OpenAPI는 이 문서의 필드·형식·경로를 표현한다. DB의 전체 모델을 그대로 내보내지 않는다. JSON 스키마만으로 표현하기 어려운 마감·재전송·조건별 필드 공개 규칙은 이 문서와 작업별 description도 함께 적용한다.
 
 ## 2. 공통 계약
 
-### 2.1 주소·인증·캐시
+### 2.1 주소·접근 제한·캐시
 
-- 브라우저 기준 Base URL: `/api/v1`. 예: `GET /api/v1/catalog`.
-- 프론트와 FastAPI를 별도 배포해도 브라우저는 프론트와 동일 출처의 이 경로를 사용한다. 배포 시 해당 경로를 FastAPI로 전달하고 Cookie·Set-Cookie를 보존한다. 실제 서비스 도메인은 배포 단계에서 정한다.
-- 비밀번호는 백엔드 환경변수 `ACCESS_PASSWORD`에 둔다. 20자 이상의 무작위 값을 쓰고, 서버 시작 시 길이를 검사해 짧으면 시작하지 않는다. 비교는 상수 시간으로 한다.
-- 로그인 요청 횟수 제한은 두지 않는다. 긴 무작위 비밀번호로 대입 공격을 막는 결정이다. 비정상 시도가 관찰되면 제한을 추가한다.
-- `sqld_session` 쿠키: `SESSION_SECRET`으로 서명한 만료 시각 토큰, HttpOnly, 운영 Secure, SameSite=Lax, Path=/. 발급 후 30일 유효하다. DB에 저장하지 않는다.
-- 로그아웃은 해당 브라우저의 쿠키를 지운다. 모든 기기의 로그인을 끊으려면 `SESSION_SECRET`을 바꾼다.
-- `POST /auth/login`과 `POST /auth/logout`만 로그인 없이 호출할 수 있다. 다른 모든 API는 문항 이미지를 포함해 유효한 쿠키가 필요하며, 없거나 만료되면 401 LOGIN_REQUIRED다.
-- 화면 코드와 정적 파일에는 교재 데이터를 넣지 않는다. 문항·해설·이미지는 로그인 후 API로만 받는다.
-- JSON 응답은 모두 `Cache-Control: private, no-store`, 문항 이미지는 `private, max-age=3600`이다.
-- 상태 변경 요청은 설정된 서비스 출처(`APP_ORIGIN`)와 일치하는 Origin을 요구한다. JSON 본문이 있는 작업은 application/json만 허용한다. 외부 Origin, 누락된 Origin, 허용하지 않은 Content-Type은 403.
-- API는 점수·정답 여부를 클라이언트 입력으로 받지 않는다.
-- 쿠키가 만료되면 프론트는 진행 중 저장을 멈추고 로그인 화면을 표시한다. 다시 로그인하면 서버 상태를 재조회해 저장되지 않은 선택을 사용자가 확인하게 한다. 실패한 저장을 자동으로 재전송하지 않는다.
+- 브라우저 기준 Base URL: `/api/v1`. 프론트와 FastAPI가 별도여도 동일 출처의 경로를 사용한다.
+- 사용자 결정으로 앱 로그인·로그아웃 API, ACCESS_PASSWORD, SESSION_SECRET과 앱 서명 쿠키를 제외한다.
+- 운영에서는 Vercel Authentication의 All Deployments로 운영·미리보기의 화면·API·문항 이미지와 백엔드 직접 주소까지 보호한다. 실제 설정·비인증 접근 거부 검증은 배포 단계에 남아 있다.
+- 이 API는 로컬 개발을 허용한다. 인터넷에 배포할 때 접근 제한을 별도로 적용해야 하며, Origin 검사를 사용자 인증으로 사용하지 않는다.
+- 화면 코드와 정적 파일에는 교재 데이터를 넣지 않는다. 문항·해설·이미지는 접근 제한이 적용된 API로만 받는다.
+- JSON 응답은 `Cache-Control: private, no-store`, 이미지 응답은 `private, max-age=3600`이다.
+- 상태 변경 요청은 `APP_ORIGIN`과 일치하는 Origin, application/json을 요구한다. 누락·외부 Origin 또는 다른 Content-Type은 403이다. 브라우저 저장은 여전히 문항별로 직렬화한다.
+- DB 엔진은 앱 생명주기에 준비하고 실제 접속은 첫 DB 요청에서 한다. 요청별 트랜잭션은 응답 전 완료하고 실패하면 취소한다. 앱 시작 시 DDL·샘플 입력은 하지 않는다.
+- 서버 예외·SQL·입력 원문은 응답과 오류 로그에 넣지 않는다. 요청 ID와 예외 종류로만 추적한다.
+- API는 점수·정답 여부·채점 시각을 클라이언트 입력으로 받지 않는다.
 
 ### 2.2 형식
 
@@ -64,8 +62,6 @@ OpenAPI는 이 문서의 필드·형식·경로를 표현한다. DB의 전체 �
 
 | HTTP | code | 의미·프론트 처리 |
 |---|---|---|
-| 401 | INVALID_PASSWORD | 비밀번호 불일치. 입력 화면에 안내 |
-| 401 | LOGIN_REQUIRED | 쿠키가 없거나 만료. 로그인 화면 표시 |
 | 403 | ORIGIN_NOT_ALLOWED / CONTENT_TYPE_NOT_ALLOWED | 요청 출처·형식 거부. 자동 반복 금지 |
 | 404 | RESOURCE_NOT_FOUND | 존재하지 않는 리소스 |
 | 409 | CREATE_REQUEST_CONFLICT | 같은 생성 UUID에 다른 조건. 새 작업이면 새 UUID 사용 |
@@ -99,9 +95,9 @@ OpenAPI는 이 문서의 필드·형식·경로를 표현한다. DB의 전체 �
 ]
 ```
 
-이미지 src는 로그인 쿠키를 확인하는 같은 출처의 API 경로다. 외부 URL·임의 HTML은 허용하지 않는다. 이미지 저장 위치는 비공개 배포 단계에서 정하되, `frontend/public` 같은 정적 공개 경로에는 두지 않는다.
+이미지 src는 배포 접근 제한이 적용되는 같은 출처의 API 경로다. 본문·보기에서 참조하는 파일만 제공하며, 해설 전용 이미지는 해당 문항을 한 번 이상 채점한 뒤 제공한다. 외부 URL·임의 HTML은 허용하지 않는다. 이미지 저장 위치는 비공개 배포 단계에서 정하되, `frontend/public` 같은 정적 공개 경로에는 두지 않는다.
 
-`Question`에는 id, question_key, subject_id, chapter_id, source_number, type, content_blocks, options가 있다. `Option`에는 id, option_number, content_blocks만 있다. 원문 보기 순서를 유지하며 단일 선택 문항만 출제한다. 다른 유형은 원문 검수 후 설계를 보완한다.
+`Question`에는 id, question_key, subject_id, chapter_id, source_number, type, status, content_blocks, options가 있다. `Option`에는 id, option_number, content_blocks만 있다. 원문 보기 순서를 유지하며 단일 선택 문항만 출제한다. 다른 유형은 원문 검수 후 설계를 보완한다.
 
 ### 3.2 답안과 공개 조건
 
@@ -137,31 +133,28 @@ OpenAPI는 이 문서의 필드·형식·경로를 표현한다. DB의 전체 �
 
 ## 4. 전체 API 목록
 
-모든 경로는 /api/v1 기준. 로그인 없이 호출할 수 있는 것은 login과 logout뿐이다.
+모든 경로는 /api/v1 기준. 앱 인증 API는 없다. catalog·이미지·학습 경로는 4단계 구현 대상이고, 모의시험·개인 통계 경로는 6·7단계 계획으로 현재 OpenAPI에는 포함하지 않는다.
 
 | Method | 경로 | 조건 | 성공 |
 |---|---|---|---|
-| POST | /auth/login | Origin 검증 | 200 AuthStatus |
-| GET | /auth/me | 로그인 | 200 AuthStatus |
-| POST | /auth/logout | Origin 검증 | 204 |
-| GET | /catalog | 로그인 | 200 CatalogResponse |
-| GET | /question-assets/{question_key}/{file_name} | 로그인 | 200 이미지 |
-| PUT | /study-sessions/{session_id} | 로그인 | 201 / 재전송 200 |
-| PUT | /mock-sessions/{session_id} | 로그인 | 201 / 재전송 200 |
-| GET | /quiz-sessions | 로그인 | 200 ActiveSessionsResponse |
-| GET | /quiz-sessions/{session_id} | 로그인 | 200 SessionResponse |
-| PATCH | /quiz-sessions/{session_id} | 로그인, active | 200 SessionResponse |
-| GET | /quiz-sessions/{session_id}/items/{item_id} | 로그인 | 200 ItemResponse |
-| PATCH | /quiz-sessions/{session_id}/items/{item_id}/answer | 로그인, active draft | 200 ItemResponse |
-| POST | /quiz-sessions/{session_id}/items/{item_id}/grade | 로그인, study | 200 GradeResponse |
-| POST | /quiz-sessions/{session_id}/items/{item_id}/retry | 로그인, study | 201 / 재전송 200 |
-| POST | /study-sessions/{session_id}/finish | 로그인, study | 200 ResultResponse |
-| POST | /mock-sessions/{session_id}/submit | 로그인, mock | 200 ResultResponse |
-| POST | /mock-sessions/{session_id}/abandon | 로그인, mock | 200 SessionResponse |
-| GET | /quiz-sessions/{session_id}/result | 로그인, completed | 200 ResultResponse |
-| GET | /me/stats | 로그인 | 200 StatsResponse |
-| GET | /me/wrong-answers | 로그인 | 200 WrongAnswersResponse |
-| GET | /me/mock-sessions | 로그인 | 200 MockHistoryResponse |
+| GET | /catalog | 배포 접근 허용 | 200 CatalogResponse |
+| GET | /question-assets/{question_key}/{file_name} | 배포 접근 허용 | 200 이미지 |
+| PUT | /study-sessions/{session_id} | 배포 접근 허용 | 201 / 재전송 200 |
+| PUT | /mock-sessions/{session_id} | 배포 접근 허용 | 201 / 재전송 200 |
+| GET | /quiz-sessions | 배포 접근 허용 | 200 ActiveSessionsResponse |
+| GET | /quiz-sessions/{session_id} | 배포 접근 허용 | 200 SessionResponse |
+| PATCH | /quiz-sessions/{session_id} | 배포 접근 허용, active | 200 SessionResponse |
+| GET | /quiz-sessions/{session_id}/items/{item_id} | 배포 접근 허용 | 200 ItemResponse |
+| PATCH | /quiz-sessions/{session_id}/items/{item_id}/answer | 배포 접근 허용, active draft | 200 ItemResponse |
+| POST | /quiz-sessions/{session_id}/items/{item_id}/grade | 배포 접근 허용, study | 200 GradeResponse |
+| POST | /quiz-sessions/{session_id}/items/{item_id}/retry | 배포 접근 허용, study | 201 / 재전송 200 |
+| POST | /study-sessions/{session_id}/finish | 배포 접근 허용, study | 200 ResultResponse |
+| POST | /mock-sessions/{session_id}/submit | 배포 접근 허용, mock | 200 ResultResponse |
+| POST | /mock-sessions/{session_id}/abandon | 배포 접근 허용, mock | 200 SessionResponse |
+| GET | /quiz-sessions/{session_id}/result | 배포 접근 허용, completed | 200 ResultResponse |
+| GET | /me/stats | 배포 접근 허용 | 200 StatsResponse |
+| GET | /me/wrong-answers | 배포 접근 허용 | 200 WrongAnswersResponse |
+| GET | /me/mock-sessions | 배포 접근 허용 | 200 MockHistoryResponse |
 
 전체 요청·응답의 필드, 필수 여부, nullable, enum, 예시는 OpenAPI가 정의한다.
 
@@ -191,11 +184,12 @@ OpenAPI는 이 문서의 필드·형식·경로를 표현한다. DB의 전체 �
 { "scope": "previous_session", "previous_session_id": "00000000-0000-4000-8000-000000000001" }
 ```
 
+- 모든 학습 scope에 `include_drafts`를 선택적으로 지정한다. 기본값 false이며 true로 명시한 검수용 학습만 draft를 포함한다. 검수 완료로 승격하지 않는다. catalog에 published/draft 개수를, 문항 응답에 status를 제공한다.
 - wrong_answers의 두 필터 배열은 각각 생략 가능하며 함께 있으면 교집합이다. chapter가 subject 밖에 속하면 422 INVALID_FILTER. 다른 scope에 불필요한 필드를 넣으면 422.
 - previous_session은 completed study/mock만 허용한다. 당시 고정된 문항 목록을 새 학습에 다시 배정한다. 문제은행 문항을 수정하지 않는다.
 - 문제 순서는 과목 display_order → 단원 display_order → source_number → question_key다. 재학습도 이 책 순서를 사용한다. 모의시험의 과거 랜덤 순서를 학습에 그대로 적용하지 않는다.
 - 오답 목록은 시작할 때 고정한다. 중간에 맞혔다고 현재 학습에서 문항이 사라지지 않는다.
-- 출제 대상 중 published가 아닌 문항이 있으면 QUESTION_UNAVAILABLE로 알린다. 조용히 누락시키거나 다른 문제로 대체하지 않는다.
+- 기본 전체·과목·단원 학습은 published만 사용한다. 이전 풀이·오답의 고정 대상에 draft가 있으면 QUESTION_UNAVAILABLE로 알리며, 명시적으로 include_drafts=true를 선택하면 검수용으로 포함할 수 있다.
 - 생성 트랜잭션에서 quiz_sessions, quiz_items, 각 문항의 attempt_number=1·선택 null인 draft를 함께 만든다. 빈 세션은 생성하지 않는다.
 
 ### 5.2 모의시험 생성
@@ -212,7 +206,7 @@ OpenAPI는 이 문서의 필드·형식·경로를 표현한다. DB의 전체 �
 
 동일 UUID·동일 모드·동일 정규화 생성 조건이면 기존 리소스를 200으로 반환한다. 출제·마감·답안을 다시 만들지 않으며 이미 종료됐어도 기존 상태를 반환한다. 조건이 다르면 CREATE_REQUEST_CONFLICT. 재시도 비교는 저장된 study_filter와 mode를 사용하고 현재 오답 목록을 다시 추출해 비교하지 않는다.
 
-`GET /quiz-sessions`: 진행 중 풀이 전체. mode 필터 지원. started_at DESC, id DESC. 기한 지난 mock을 먼저 완료시킨 뒤 목록에서 제외한다.
+`GET /quiz-sessions`: 진행 중 풀이 전체. 현재 mode=study만 지원하며 started_at DESC, id DESC다. mock 조회·만료 처리는 6단계에서 확장한다.
 
 `GET /quiz-sessions/{id}`: 상태와 네비게이터 목록. 각 항목은 item_id·position·question_key·subject_id·chapter_id·answered·graded다. 본문·정답·해설은 포함하지 않는다.
 
@@ -302,7 +296,7 @@ timeout의 finished_at과 각 답안 graded_at은 deadline_at, updated_at은 실
 
 포기 확인 후 마감 전 active만 abandoned로 종료한다. 점수·정답·해설은 공개하지 않고 개인 정답 통계에서도 제외한다. deadline을 이미 지났으면 completed/timeout을 반환한다. 이미 종료된 상태는 그대로 반환한다.
 
-창 닫기·이동·백그라운드 진입·로그아웃을 포기로 해석하지 않는다. 새 시험을 만들기 위해 기존 시험을 자동 포기시키지도 않는다.
+창 닫기·이동·백그라운드 진입을 포기로 해석하지 않는다. 새 시험을 만들기 위해 기존 시험을 자동 포기시키지도 않는다.
 
 ### 7.4 결과
 
@@ -311,24 +305,16 @@ timeout의 finished_at과 각 답안 graded_at은 deadline_at, updated_at은 실
 - 학습: item_count, graded_item_count, correct_item_count, incorrect_item_count, ungraded_item_count, accuracy_percent.
 - 모의시험: 50문항, 응답·미응답·정답·오답 수, 총점·최대점·정답률, 과목별 점수·과락 여부, passed.
 - 정답당 2점. 총점≥60, 1과목≥8/20, 2과목≥32/80일 때 passed=true.
-- 결과의 items는 배정 순서이며 outcome에 당시 선택·정답 보기 ID·정오답·채점 시각을 담는다. 미채점 학습 문항의 outcome은 null이다.
+- 결과의 items는 배정 순서이며 outcome에 당시 선택·정오답·채점 시각과 현재 문제은행의 정답 보기 ID를 담는다. 기존 DB 설계대로 문항 버전 관리를 하지 않으므로 교정 후 현재 정답·해설은 바뀔 수 있지만 과거 채점 결과·점수는 바뀌지 않는다. 미채점 학습 문항의 outcome은 null이다.
 - 본문·해설은 개별 item 조회로 읽는다.
 - active 미마감은 RESULT_NOT_READY. abandoned는 SESSION_ABANDONED로 정답을 공개하지 않는다.
 - 이후 다른 학습의 결과가 바뀌어도 과거 회차 점수는 바뀌지 않는다.
 
-## 8. 로그인
+## 8. 배포 접근 제한
 
-`POST /auth/login`
+앱 인증 경로와 비밀번호 입력 화면은 제외한다. Vercel의 본인 계정 접근 제한으로 개인 앱을 보호한다. All Deployments를 사용하며 프론트뿐 아니라 별도 백엔드의 운영·미리보기·직접 주소, 이미지까지 비인증 접근이 차단되는지 실제 배포 후 확인한다.
 
-```json
-{ "password": "example-only-not-a-real-password" }
-```
-
-일치하면 `sqld_session` 쿠키를 발급하고 AuthStatus(server_now, authenticated, expires_at)를 반환한다. 불일치는 401 INVALID_PASSWORD이며 그 밖의 정보를 주지 않는다. 비밀번호를 로그에 남기지 않는다.
-
-`GET /auth/me`는 쿠키가 유효하면 AuthStatus, 아니면 401 LOGIN_REQUIRED를 반환한다.
-
-`POST /auth/logout`은 본문 없이 쿠키를 지우고 204를 반환한다. 서버의 풀이 기록은 보존하고 프론트는 TanStack Query 캐시를 비운 뒤 로그인 화면으로 이동한다.
+[공식 Vercel 안내](https://vercel.com/changelog/protect-production-deployments-for-free-on-every-plan)에 따라 모든 플랜에서 운영 배포의 Vercel Authentication을 사용할 수 있다. 현재 저장소에 배포 보호를 적용한 상태는 아니다.
 
 ## 9. 개인 통계·오답·시험 이력
 
@@ -343,7 +329,7 @@ timeout의 finished_at과 각 답안 graded_at은 deadline_at, updated_at은 실
 
 API 명세는 페이지 수·배치·색상·PC/모바일의 화면 구성을 강제하지 않는다. 화면 AI는 아래 데이터 흐름과 상태를 지키면서 디자인한다.
 
-1. 최초 접속: auth/me. 401이면 로그인 화면, 성공하면 catalog와 quiz-sessions.
+1. 최초 접속: 배포 플랫폼의 접근 확인을 거쳐 catalog와 quiz-sessions. 검수용 학습은 include_drafts=true를 명시하고 검수 대기 상태를 표시한다.
 2. 학습 시작: 새 UUID로 PUT study → session에서 첫 item ID → GET item.
 3. 보기 선택: 문항별 저장 큐 → PATCH answer → 응답 반영. 저장 중·실패를 구분한다.
 4. 정답 확인: 저장 완료 → POST grade → 해당 attempt일 때 review 표시.
@@ -351,8 +337,8 @@ API 명세는 페이지 수·배치·색상·PC/모바일의 화면 구성을 �
 6. 시험 시작: 새 UUID로 PUT mock. 브라우저가 받은 server_now와 deadline_at으로 남은 시간을 표시하고 포커스 복귀·재접속 때 서버에 재확인한다.
 7. 시험 제출: 저장 완료 → 최신 현황·미응답 확인 → POST submit → 결과.
 8. 기기 전환: 포커스 복귀 때 조회를 다시 실행해 다른 기기에서 저장한 답안을 반영한다.
-9. API 실패 시 저장됐다고 표시하지 않는다. 오프라인 답안 큐·자동 재로그인·무한 재시도는 이번 범위에 넣지 않는다. 마지막 서버 확인 상태와 아직 저장되지 않은 선택을 구분한다.
-10. 어느 API든 401 LOGIN_REQUIRED를 받으면 캐시를 비우고 로그인 화면으로 이동한다.
+9. API 실패 시 저장됐다고 표시하지 않는다. 오프라인 답안 큐·자동 인증·무한 재시도는 이번 범위에 넣지 않는다. 마지막 서버 확인 상태와 아직 저장되지 않은 선택을 구분한다.
+10. 플랫폼 접근 확인 페이지 등 JSON이 아닌 응답은 저장 성공으로 표시하지 않는다. 접근 확인 후 서버 상태를 다시 조회하며 변경 요청을 자동 재전송하지 않는다.
 
 TanStack Query는 조회 캐시, mutation은 생성·저장·채점·종료를 담당한다. 생성·채점 mutation의 재시도를 하더라도 동일 리소스 UUID·attempt ID를 사용한다. 정답·해설은 허용 시점 전 캐시에 넣지 않는다.
 
@@ -360,14 +346,14 @@ TanStack Query는 조회 캐시, mutation은 생성·저장·채점·종료를 �
 
 ### 11.1 DB 대응
 
-[DB 설계안](2026-10-28-database-design.md)의 7개 테이블을 사용한다. 로그인 상태는 서명 쿠키에만 있으므로 DB 테이블이 필요 없다.
+[DB 설계안](2026-10-28-database-design.md)의 7개 테이블을 사용한다. 앱 인증 테이블은 추가하지 않으며 배포 플랫폼의 접근 제한을 사용한다.
 
 별도 idempotency 테이블은 추가하지 않는다. 생성은 quiz_session UUID, grade는 attempt ID, retry는 이전 시도+다음 attempt_number, submit/finish는 세션 종료 상태로 재전송을 처리한다. 기존 유니크 제약과 트랜잭션을 함께 사용한다.
 
 ### 11.2 구현 완료 시 확인할 시나리오
 
-1. 쿠키 없이 login·logout을 뺀 모든 API와 문항 이미지를 요청하면 401이다.
-2. 만료되거나 서명이 틀린 쿠키는 거부되고, 틀린 비밀번호는 쿠키를 발급하지 않는다.
+1. 배포 후 비인증 브라우저의 화면·API·이미지·백엔드 직접 주소 접근을 플랫폼에서 차단한다.
+2. 배포 보호가 미리보기·운영·직접 주소에 모두 적용되고 별도 백엔드 우회가 없는지 확인한다.
 3. 외부 Origin의 상태 변경 요청은 403이다.
 4. 모든 제출 전 mock 응답과 캐시에 정답 보기 ID·해설·정오답이 없다.
 5. 같은 생성 UUID를 여러 번 전송해도 문제·시도·마감이 하나이고 조건 변경은 거부된다.
@@ -377,15 +363,15 @@ TanStack Query는 조회 캐시, mutation은 생성·저장·채점·종료를 �
 9. 창 닫기 후 만료된 mock이 재조회·통계 조회에서 deadline_at 기준으로 반영된다.
 10. 같은 문항 정답→오답→정답에 따라 최신 통계·오답이 바뀌고 과거 시험 점수는 유지된다.
 11. 문항을 수정해 다시 입력해도 풀이 기록과 과거 시험 점수가 유지된다.
-12. 모바일·PC에서 동일 계약으로 로그인·저장·시험 제출이 가능하고, 한쪽에서 풀던 세션을 다른 쪽에서 이어 풀 수 있다.
+12. 모바일·PC에서 배포 접근 확인 후 동일 계약으로 저장·시험 제출이 가능하고, 한쪽에서 풀던 세션을 다른 쪽에서 이어 풀 수 있다.
 13. 예외·DB 오류에 비밀번호·쿠키 값·SQL이 포함되지 않는다.
 
 ### 11.3 현재 확인 범위와 남은 사항
 
-이 작업은 API 문서와 정적 OpenAPI 작성이다. 실제 FastAPI 서버·DB·브라우저 통합 테스트를 대신하지 않는다.
+4단계에서 학습 API를 구현하고 실제 FastAPI OpenAPI를 JSON 계약에 반영한다. 모의시험·통계·화면·실제 배포 보호는 후속 단계다. 검증 결과와 남은 범위는 4단계 결과 문서에 기록한다.
 
 2026-11-04 수정 후 정적 점검 결과: 21개 작업·50개 스키마의 참조와 경로 파라미터가 맞고, OpenAPI 요청/응답 예제 20개가 스키마의 필수·허용 필드와 타입에 맞는다. 자체 검사 스크립트 결과이며 정식 OpenAPI 규격 검증기나 실행 서버 검증 결과가 아니다.
 
-로그인 유지 30일은 작성자 제안값이다. 실제 배포 도메인·프록시 설정·문항 이미지 저장 위치는 비공개 배포 단계에서 확정한다.
+앱 인증의 30일 유지 제안은 폐기했다. 실제 배포 도메인·프록시·접근 제한 설정·문항 이미지의 영구 저장 위치는 비공개 배포 단계에서 확정한다.
 
 원문 전수 문항·정답 대응·단일 선택 외 유형은 검수 전이다. 다른 유형이 있으면 선택/정답 입력 스키마를 데이터 입력 전에 보완한다.
