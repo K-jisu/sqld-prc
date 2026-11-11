@@ -67,7 +67,7 @@ FastAPI를 중심으로 기존 DB·API 설계에서 잡은 구성이다. FastAPI
 - Python 의존성은 프로젝트 전용 가상환경으로 분리한다.
 - 백엔드 패키지 관리자는 uv다. `pyproject.toml`, `uv.lock`, `.venv/`로 선언·잠금·가상환경을 관리한다.
 
-uv 프로젝트 초기화와 의존성 설치를 확인했다. 현재 `requires-python`은 `>=3.14`, `.python-version`은 `3.14`이며 로컬 검증은 Python 3.14.3에서 진행했다. 기본 라이브러리 import와 FastAPI 시작·OpenAPI 응답 테스트 1개가 통과했다. 배포 환경의 Python 호환성은 배포 단계에서 확인한다.
+uv 프로젝트 초기화와 의존성 설치를 확인했다. 현재 `requires-python`은 `>=3.14`, `.python-version`은 `3.14`다. 2026-11-11에는 기존 SQLModel·psycopg·Alembic으로 DB 모델 7개·마이그레이션·샘플 입력을 구현했다. 로컬 PostgreSQL 16과 실제 Neon PostgreSQL 18.6에서 각각 전체 테스트 71개가 통과했고, Neon 앱 DB에 draft 샘플 8개를 입력·재입력했다. 배포 환경의 Python 호환성은 아직 확인하지 않았다.
 
 ## 4. 데이터베이스와 인증
 
@@ -85,7 +85,7 @@ uv 프로젝트 초기화와 의존성 설치를 확인했다. 현재 `requires-
 | 백엔드 배포 | 기존 검토안은 Vercel의 FastAPI 배포. 최종 설정과 호환성은 배포 단계에서 확인 |
 | 문항 이미지 저장 | Git에서 제외하므로 로그인 뒤에서 제공할 저장 위치를 배포 단계에서 결정 |
 | DB 배포 | Neon 사용으로 결정. 무료 플랜으로 시작하는 방향이며 실제 한도는 사용 시 확인 |
-| 백엔드 테스트 | pytest 설치, 앱 시작·OpenAPI 응답 테스트 1개 통과 |
+| 백엔드 테스트 | 기존 앱·변환·DB 입력 검증 및 실제 PostgreSQL 제약·기록 보존 테스트 71개 통과. TEST_DATABASE_URL 없는 실행은 DB 통합 검증을 건너뜀 |
 | 브라우저 테스트 | Playwright로 주요 흐름 검증을 제안한 상태 |
 
 ## 6. 프로젝트 구조와 진행 방식

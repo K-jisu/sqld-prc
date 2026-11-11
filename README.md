@@ -43,6 +43,8 @@ http://127.0.0.1:8000/docs 에서 확인합니다.
 
 ## 검증
 
+3단계 DB 모델·마이그레이션·샘플 입력 절차는 [백엔드 README](backend/README.md)에 있습니다. [로컬 PostgreSQL과 실제 Neon 검증 결과](2026-11-11-phase3-database-report.md)를 구분해 기록합니다.
+
 프론트의 `frontend/`에서:
 
 ```bash
@@ -64,6 +66,17 @@ uv run pytest -q
 각 프로젝트의 `.env.example`을 기준으로 필요한 값을 정합니다. 실제 `.env`, 교재 PDF, 가상환경, node_modules, 빌드 결과와 캐시는 Git에서 제외하고 `frontend/pnpm-lock.yaml`, `backend/uv.lock`은 포함합니다. API 연결·DB·로그인 구현에서 예제 변수들을 실제로 연결합니다.
 
 ## 설계와 진행
+
+2단계 샘플 준비는 제공 ZIP을 루트에 둔 뒤 백엔드에서 실행합니다.
+
+```bash
+cd backend
+uv run --locked python scripts/prepare_samples.py
+```
+
+자료는 Git에서 제외한 `data/private/phase2/`에 생성됩니다. 생성 결과는 재실행 시 갱신되지만 `user-review.md`의 사용자 기록은 보존합니다. 샘플은 자동으로 검수 완료 처리하지 않습니다. [2단계 결과와 남은 검수](2026-11-10-phase2-report.md)를 참고합니다.
+
+원본 대조로 확인한 교정은 같은 폴더의 `sample-corrections.json`에 보관합니다. 이 파일도 비공개 입력 자료이므로 ZIP과 함께 보관합니다. 재실행 때 원문이 교정 대상과 일치하지 않으면 오류로 알립니다.
 
 - [기술 스택](TECH_STACK.md)
 - [작업 체크리스트](WORK_CHECKLIST.md)

@@ -28,6 +28,8 @@ settings.json
 
 # 교재 원본은 공개 저장소에 올리지 않는다
 *.pdf
+/SQL_자격검정실전문제_변환.zip
+/data/private/
 
 # OS files
 .DS_Store
