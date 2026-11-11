@@ -77,6 +77,10 @@ class EmptyRequest(Model):
     pass
 
 
+class MockCreate(Model):
+    include_drafts: StrictBool = False
+
+
 class ErrorBody(Model):
     code: str
     message: str
@@ -231,6 +235,36 @@ class StudyResult(Model):
     items: list[ResultItem]
 
 
+class SubjectScore(Model):
+    subject_id: int
+    item_count: int
+    correct_item_count: int
+    score: int
+    max_score: int
+    minimum_score: int
+    failed: bool
+
+
+class MockSummary(Model):
+    item_count: int
+    answered_item_count: int
+    unanswered_item_count: int
+    correct_item_count: int
+    incorrect_item_count: int
+    score: int
+    max_score: int
+    accuracy_percent: float
+    passed: bool
+    subjects: list[SubjectScore]
+
+
+class MockResult(Model):
+    mode: Literal['mock'] = 'mock'
+    session: SessionOut
+    summary: MockSummary
+    items: list[ResultItem]
+
+
 class ResultResponse(Model):
     server_now: datetime
-    result: StudyResult
+    result: Annotated[StudyResult | MockResult, Field(discriminator='mode')]
