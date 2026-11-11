@@ -4,7 +4,7 @@ SQLD 문제풀이와 모의시험을 혼자 공부하기 위한 개인 학습 �
 
 - 프론트: Next.js App Router, React, TypeScript, Tailwind CSS, TanStack Query
 - 백엔드: Python, FastAPI, SQLModel, psycopg, Alembic
-- DB 계획: Neon PostgreSQL
+- DB: Neon PostgreSQL
 
 이 저장소는 공개 상태입니다. 교재 PDF·변환한 문항 데이터·문항 이미지는 커밋하지 않습니다.
 
@@ -36,7 +36,7 @@ npx --yes pnpm@10.32.1 dev
 ```bash
 cd backend
 uv sync --locked
-uv run fastapi dev src/backend/main.py
+uv run --env-file .env --locked fastapi dev src/backend/main.py
 ```
 
 http://127.0.0.1:8000/docs 에서 확인합니다.
@@ -45,13 +45,16 @@ http://127.0.0.1:8000/docs 에서 확인합니다.
 
 3단계 DB 모델·마이그레이션·샘플 입력 절차는 [백엔드 README](backend/README.md)에 있습니다. [로컬 PostgreSQL과 실제 Neon 검증 결과](2026-11-11-phase3-database-report.md)를 구분해 기록합니다.
 
-4단계는 과목·단원 조회, 학습 생성·이어 풀기, 답안 저장·채점·재풀이·종료와 문항 이미지 API를 구현합니다. [4단계 구현·검증 결과](2026-11-11-phase4-study-api-report.md)와 [API 명세](2026-10-28-api-design.md)를 참고합니다. 모의시험·통계·화면 연결은 후속 단계입니다.
+4단계는 과목·단원 조회, 학습 생성·이어 풀기, 답안 저장·채점·재풀이·종료와 문항 이미지 API를 구현했고 GitHub main의 `75aba3b`로 업로드했습니다. [4단계 구현·검증 결과](2026-11-11-phase4-study-api-report.md)와 [API 명세](2026-10-28-api-design.md)를 참고합니다.
+
+5단계에서는 밝고 차분한 학습 노트 화면에 실제 API를 연결했습니다. 전체·과목·단원별 학습, 이어 풀기, 자동 저장, 한 문항 채점·해설·재풀이, 종료·결과·복습을 사용할 수 있습니다. 현재 실제 샘플은 draft 8문항이므로 `검수 대기 문항 포함`을 선택해야 풀 수 있습니다. 이 선택으로 검수 상태가 바뀌지는 않습니다. [5단계 구현·검증 결과](2026-11-11-phase5-learning-ui-report.md)를 참고합니다. 모의시험·통계·비공개 배포는 후속 단계입니다.
 
 프론트의 `frontend/`에서:
 
 ```bash
 pnpm lint
 pnpm typecheck
+pnpm test
 pnpm build
 ```
 
@@ -65,7 +68,7 @@ uv run pytest -q
 
 ## 환경변수와 Git
 
-각 프로젝트의 `.env.example`을 기준으로 필요한 값을 정합니다. 실제 `.env`, 교재 PDF, 가상환경, node_modules, 빌드 결과와 캐시는 Git에서 제외하고 `frontend/pnpm-lock.yaml`, `backend/uv.lock`은 포함합니다. DB 연결과 `APP_ORIGIN`은 백엔드에서 사용하며 프론트의 동일 출처 API 전달은 화면 연결 단계에서 구현합니다.
+각 프로젝트의 `.env.example`을 기준으로 필요한 값을 정합니다. 실제 `.env`, 교재 PDF, 가상환경, node_modules, 빌드 결과와 캐시는 Git에서 제외하고 `frontend/pnpm-lock.yaml`, `backend/uv.lock`은 포함합니다. DB 연결과 `APP_ORIGIN`은 백엔드에서 사용합니다. 프론트는 같은 출처의 `/api/v1` 요청을 서버 전용 `BACKEND_API_URL`로 전달합니다. 로컬 기본값은 `http://127.0.0.1:8000`이며 브라우저 주소가 `http://localhost:3000`이면 백엔드 `APP_ORIGIN`도 그 값으로 맞춥니다.
 
 ## 설계와 진행
 

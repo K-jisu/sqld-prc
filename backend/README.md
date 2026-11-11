@@ -21,7 +21,7 @@ uv run --env-file .env --locked fastapi dev src/backend/main.py
 - API 문서: http://127.0.0.1:8000/docs
 - OpenAPI: http://127.0.0.1:8000/openapi.json
 
-시작 파일은 `src/backend/main.py`입니다. 현재 기능 경로는 아직 정의하지 않았으므로 `/`의 404 응답은 정상입니다.
+시작 파일은 `src/backend/main.py`입니다. 학습 API는 `/api/v1`에 있고 `/`의 404 응답은 정상입니다.
 
 ## 테스트
 
@@ -29,7 +29,7 @@ uv run --env-file .env --locked fastapi dev src/backend/main.py
 uv run pytest -q
 ```
 
-앱 시작·OpenAPI·문항 변환·입력 검증과 학습 API를 검사합니다. `TEST_DATABASE_URL`이 있으면 실제 PostgreSQL 마이그레이션·제약조건·재입력·풀이 이력 보존도 검사합니다. 없으면 통합 테스트는 명시적으로 건너뜁니다. 모의시험·통계 API와 화면 연결은 후속 단계입니다.
+앱 시작·OpenAPI·문항 변환·입력 검증과 학습 API를 검사합니다. `TEST_DATABASE_URL`이 있으면 실제 PostgreSQL 마이그레이션·제약조건·재입력·풀이 이력 보존도 검사합니다. 없으면 통합 테스트는 명시적으로 건너뜁니다. 화면 연결은 5단계에서 구현했고 모의시험·통계 API는 후속 단계입니다.
 
 ```bash
 uv run --env-file .env --locked pytest -q
@@ -57,7 +57,7 @@ uv run --env-file .env --locked python -m backend.import_questions
 
 문항 키와 보기 번호로 기존 UUID를 유지해 갱신하며, 채점 완료 답안과 과거 점수는 수정하지 않습니다. 입력은 한 트랜잭션으로 처리합니다. 참조 중인 보기 삭제는 문항 키와 사유를 알리고 전체 입력을 취소합니다. 같은 내용의 draft 재입력으로 이미 게시한 문항을 draft로 되돌리지 않습니다. 게시된 문항에 검수 대기 상태의 다른 내용을 덮어쓰는 것은 거부합니다.
 
-샘플은 draft로 입력하고 검수 메모는 학습 콘텐츠에 저장하지 않습니다. `published` 입력은 `review.user_verified=true`로 확인된 자료만 허용합니다. 학습 생성에 include_drafts=true를 명시하면 검수용으로 풀 수 있으며 사용자 확인 상태를 자동 변경하지 않습니다. 검수 화면은 5단계에서 연결합니다. JSON 출력의 `input_draft`는 입력 파일의 draft 개수입니다.
+샘플은 draft로 입력하고 검수 메모는 학습 콘텐츠에 저장하지 않습니다. `published` 입력은 `review.user_verified=true`로 확인된 자료만 허용합니다. 학습 생성에 include_drafts=true를 명시하면 검수용으로 풀 수 있으며 사용자 확인 상태를 자동 변경하지 않습니다. 5단계 학습 화면의 `검수 대기 문항 포함`으로 연결했습니다. 검수 상태 변경 기능은 포함하지 않습니다. JSON 출력의 `input_draft`는 입력 파일의 draft 개수입니다.
 
 2026-11-11 검증: 로컬 임시 PostgreSQL 16에 이어 실제 Neon PostgreSQL 18.6에서도 연결·마이그레이션·샘플 8개 재입력과 전체 테스트 71개 통과를 확인했습니다. 사용자 연결 값을 `backend/.env`에 반영했으며 이후 명령은 이 파일을 사용합니다. 앱에는 draft 문항 8개·보기 32개가 있고 테스트용 임시 스키마는 모두 정리됐습니다. 자세한 내용은 [3단계 결과](../2026-11-11-phase3-database-report.md)에 있습니다.
 

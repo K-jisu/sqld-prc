@@ -1,4 +1,5 @@
 /graft/
+/.impeccable/hook.cache.json
 
 # Python
 __pycache__/
