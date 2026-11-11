@@ -144,6 +144,7 @@ OpenAPI는 이 문서의 필드·형식·경로를 표현한다. DB의 전체 �
 | GET | /quiz-sessions | 배포 접근 허용 | 200 ActiveSessionsResponse |
 | GET | /quiz-sessions/{session_id} | 배포 접근 허용 | 200 SessionResponse |
 | PATCH | /quiz-sessions/{session_id} | 배포 접근 허용, active | 200 SessionResponse |
+| GET | /quiz-sessions/{session_id}/items | 배포 접근 허용 | 200 ItemsResponse, 배정 문항 일괄 조회 |
 | GET | /quiz-sessions/{session_id}/items/{item_id} | 배포 접근 허용 | 200 ItemResponse |
 | PATCH | /quiz-sessions/{session_id}/items/{item_id}/answer | 배포 접근 허용, active draft | 200 ItemResponse |
 | POST | /quiz-sessions/{session_id}/items/{item_id}/grade | 배포 접근 허용, study | 200 GradeResponse |
@@ -214,6 +215,8 @@ OpenAPI는 이 문서의 필드·형식·경로를 표현한다. DB의 전체 �
 
 `GET /quiz-sessions/{id}/items/{item_id}`: 문항 본문·보기·답안과 조건에 맞는 review를 반환한다. item은 반드시 URL의 session에 속해야 한다.
 
+`GET /quiz-sessions/{id}/items`: 같은 공개 규칙으로 배정 문항 전체를 한 번에 반환한다. `server_now`, `session_id`, `session_status`, `items`를 포함한다. 미채점 문항의 정답·해설은 보내지 않는다. 화면은 문항을 캐시에 보관해 이동 시 개별 조회를 반복하지 않고, 다른 기기에서 돌아오거나 오류를 복구할 때 서버 상태를 확인한다.
+
 ## 6. 답안 저장·채점·재풀이
 
 ### 6.1 보기 선택 저장
@@ -235,6 +238,8 @@ selected_option_id=null이면 선택 해제다. active의 현재 draft만 변경
 - graded 시도·과거 시도·종료 세션에는 선택 변경을 적용하지 않는다.
 
 프론트는 문항별 저장을 직렬화한다. 빠르게 여러 보기를 누르면 최종 선택을 순서대로 저장한다. 저장 대기·실패 상태를 표시하고, 답안 저장 확인 전 정답 확인·제출을 실행하지 않는다. 화면 이동해도 이미 보낸 저장 요청을 임의 취소해서 저장 여부를 알 수 없게 만들지 않는다.
+
+문항 이동은 서버 위치 저장 응답을 기다리지 않고 캐시에서 즉시 반영한다. 저장 성공 응답으로 문항과 응답 현황을 갱신하며 매 선택 뒤 재조회하지 않는다. 저장 중·실패한 선택은 문항을 이동했다 돌아와도 유지하고, 미해결 저장이 있으면 채점·학습 종료 전에 처리한다.
 
 ### 6.2 학습 문항 채점
 

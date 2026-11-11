@@ -24,6 +24,7 @@ export async function installApi(page: Page, settings: {
   empty?: boolean;
 } = {}) {
   const saveCalls: Save[] = [];
+  const requests: { path: string; method: string }[] = [];
   const creates: Record<string, unknown>[] = [];
   const questions = [1, 2, 3].map((n) => ({
     id: id(10 + n), question_key: `S${n === 2 ? 2 : 1}-Q00${n === 3 ? 2 : 1}`,
@@ -73,6 +74,7 @@ export async function installApi(page: Page, settings: {
   await page.route("**/api/v1/**", async (route) => {
     const path = new URL(route.request().url()).pathname.replace("/api/v1", "");
     const method = route.request().method();
+    requests.push({ path, method });
     const respond = (body: unknown, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
     if (await settings.beforeRequest?.(path, method)) return respond({ error: { code: "SERVICE_UNAVAILABLE", message: "서버 상태를 확인하지 못했습니다.", request_id: id(999), details: {} } }, 503);
     if (path.includes("question-assets")) return route.fulfill({ contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="120" viewBox="0 0 640 120"><rect x="1" y="1" width="638" height="118" fill="white" stroke="#ccc"/><text x="24" y="48" font-size="18">employees</text><text x="24" y="88" font-size="16">employee_id | department_id</text></svg>' });
@@ -99,6 +101,10 @@ export async function installApi(page: Page, settings: {
       if (method === "PATCH") quiz.current_position = route.request().postDataJSON().current_position;
       return respond(sessionResponse(quiz));
     }
+    if (segments[2] === 'items' && !segments[3]) return respond({ server_now: now, session_id: quiz.id, session_status: quiz.status,
+      items: quiz.items.map((item) => { const a = current(quiz, item); return {
+        id: item.id, position: item.position, question: item.question, attempt: attempt(a), review: a.status === 'graded' ? review(a, item.question) : null,
+      }; }) });
     const item = quiz.items.find((i) => i.id === segments[3])!;
     if (!item) return respond({}, 404);
     const body = method === "GET" ? {} : route.request().postDataJSON();
@@ -122,5 +128,5 @@ export async function installApi(page: Page, settings: {
     return respond({ server_now: now, session_id: quiz.id, session_status: quiz.status,
       item: { id: item.id, position: item.position, question: item.question, attempt: attempt(visible), review: visible.status === "graded" ? review(visible, item.question) : null } });
   });
-  return { saveCalls, creates, sessions, optionIds: questions[0].options.map((o) => o.id) };
+  return { saveCalls, creates, requests, sessions, optionIds: questions[0].options.map((o) => o.id) };
 }

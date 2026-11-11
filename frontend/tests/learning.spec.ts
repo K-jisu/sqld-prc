@@ -13,7 +13,7 @@ test("범위와 검수 대기 포함을 선택해 학습을 시작한다", async
   expect(api.creates).toEqual([{ scope: "all", include_drafts: true }]);
 });
 
-test("빠른 선택을 직렬 저장하고 대기 중 채점과 이동을 막는다", async ({ page }) => {
+test("빠른 선택을 직렬 저장하고 대기 중에도 문항 이동을 허용한다", async ({ page }) => {
   let release!: () => void;
   const held = new Promise<void>((resolve) => { release = resolve; });
   let releaseSecond!: () => void;
@@ -25,7 +25,7 @@ test("빠른 선택을 직렬 저장하고 대기 중 채점과 이동을 막는
   await page.getByRole("radio", { name: "3번 보기" }).check();
   await expect(page.getByRole("radio", { name: "3번 보기" })).toBeChecked();
   await expect(page.getByRole("button", { name: "정답 확인", exact: true })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "다음 문항" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "다음 문항" })).toBeEnabled();
   expect(api.saveCalls).toHaveLength(1);
   release();
   try {
@@ -35,6 +35,54 @@ test("빠른 선택을 직렬 저장하고 대기 중 채점과 이동을 막는
   await expect(page.getByText("저장됨", { exact: true })).toBeVisible();
   expect(api.saveCalls.map((v) => v.selected_option_id)).toEqual(api.optionIds.slice(0, 3));
   await expect(page.getByRole("radio", { name: "3번 보기" })).toBeChecked();
+});
+
+test('문항을 한 번에 받아 저장·위치 응답을 기다리지 않고 이동한다', async ({ page }) => {
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => { release = resolve; });
+  const server = await installApi(page, {
+    beforeSave: async () => { await held; },
+    beforeRequest: async (path, method) => { if (method === 'PATCH' && path === `/quiz-sessions/${sessionId}`) await held; },
+  });
+  await page.goto(`/study/${sessionId}`);
+  await page.getByRole('radio', { name: '2번 보기' }).check();
+  await page.getByRole('button', { name: '다음 문항' }).click();
+  try {
+    await expect(page.getByText('합성 문항 2:', { exact: false })).toBeVisible();
+    await page.getByRole('button', { name: '이전 문항' }).click();
+    await expect(page.getByRole('radio', { name: '2번 보기' })).toBeChecked();
+    expect(server.requests.filter(r => r.method === 'GET' && r.path.endsWith('/items'))).toHaveLength(1);
+    expect(server.requests.filter(r => r.method === 'GET' && r.path.includes('/items/'))).toHaveLength(0);
+  } finally { release(); }
+  await expect(page.getByText('저장됨', { exact: true })).toBeVisible();
+  expect(server.requests.filter(r => r.method === 'GET' && r.path.includes('/items/'))).toHaveLength(0);
+});
+
+test('다른 문항으로 이동했다 돌아와도 저장 실패를 다시 처리할 수 있다', async ({ page }) => {
+  await installApi(page, { beforeSave: async (_, count) => count === 1 });
+  await page.goto(`/study/${sessionId}`);
+  await page.getByRole('radio', { name: '2번 보기' }).check();
+  await expect(page.getByRole('button', { name: '다시 저장' })).toBeVisible();
+  await page.getByRole('button', { name: '다음 문항' }).click();
+  await expect(page.getByText('합성 문항 2:', { exact: false })).toBeVisible();
+  await expect(page.getByRole('button', { name: '학습 종료', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: '이전 문항' }).click();
+  await expect(page.getByRole('radio', { name: '2번 보기' })).toBeChecked();
+  await page.getByRole('button', { name: '다시 저장' }).click();
+  await expect(page.getByText('저장됨', { exact: true })).toBeVisible();
+});
+
+test('포커스 복귀 후 일괄 조회가 실패하면 이유를 표시하고 다시 불러올 수 있다', async ({ page }) => {
+  let failBulk = false;
+  await installApi(page, { beforeRequest: async (path, method) => failBulk && method === 'GET' && path.endsWith('/items') });
+  await page.goto(`/study/${sessionId}`);
+  await expect(page.getByText('합성 문항 1:', { exact: false })).toBeVisible();
+  failBulk = true;
+  await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
+  await expect(page.locator('.floating-error').getByRole('alert')).toBeVisible();
+  failBulk = false;
+  await page.locator('.floating-error').getByRole('button', { name: '다시 불러오기' }).click();
+  await expect(page.getByRole('radio', { name: '1번 보기' })).toBeEnabled();
 });
 
 test("저장 실패를 표시하고 사용자가 재시도해야 채점할 수 있다", async ({ page }) => {

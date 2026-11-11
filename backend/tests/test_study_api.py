@@ -137,6 +137,25 @@ def test_create_fixes_book_order_and_hides_answers(api):
         assert db.exec(select(func.count()).select_from(AnswerAttempt)).one() == 2
 
 
+def test_all_session_items_load_in_one_bounded_query_without_answers(api):
+    client, engine = api
+    created = start(client, {'scope': 'all', 'include_drafts': True}).json()
+    statements = []
+    def count(connection, cursor, statement, parameters, context, executemany):
+        statements.append(statement)
+    event.listen(engine, 'before_cursor_execute', count)
+    try:
+        response = client.get(f"/api/v1/quiz-sessions/{created['session']['id']}/items")
+    finally:
+        event.remove(engine, 'before_cursor_execute', count)
+    assert response.status_code == 200, response.text
+    assert len(response.json()['items']) == 3
+    assert len(statements) <= 5
+    assert 'is_correct' not in response.text and 'explanation_blocks' not in response.text
+    assert [i['question']['question_key'] for i in response.json()['items']] == [i['question_key'] for i in created['items']]
+    assert all(len(i['question']['options']) == 4 and i['review'] is None for i in response.json()['items'])
+
+
 def test_drafts_require_explicit_opt_in_and_stay_draft(api):
     client, engine = api
     response = start(client, {'scope': 'all', 'include_drafts': True})

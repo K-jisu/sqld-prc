@@ -1,4 +1,4 @@
-"""DB 정답 필드를 자동 직렬화하지 않는 학습 API 계약."""
+"""개인 학습의 로컬 채점·기록 동기화 API 계약."""
 
 from datetime import datetime
 from typing import Annotated, Literal
@@ -75,6 +75,23 @@ class RetryRequest(Model):
 
 class EmptyRequest(Model):
     pass
+
+
+class ProgressAnswer(Model):
+    item_id: UUID
+    attempt_id: UUID
+    attempt_number: PositiveInt
+    selected_option_id: UUID | None
+    graded: StrictBool
+
+
+class ProgressRequest(Model):
+    answers: Annotated[list[ProgressAnswer], Field(min_length=1)]
+
+
+class ProgressResponse(Model):
+    server_now: datetime
+    saved_attempt_ids: list[UUID]
 
 
 class ErrorBody(Model):
@@ -173,12 +190,18 @@ class Review(Model):
     explanation_blocks: list[Block]
 
 
+class Solution(Model):
+    correct_option_id: UUID
+    explanation_blocks: list[Block]
+
+
 class ItemOut(Model):
     id: UUID
     position: int
     question: QuestionOut
     attempt: AttemptOut
     review: Review | None
+    solution: Solution | None = None
 
 
 class ItemResponse(Model):
@@ -186,6 +209,13 @@ class ItemResponse(Model):
     session_id: UUID
     session_status: Literal['active', 'completed', 'abandoned']
     item: ItemOut
+
+
+class ItemsResponse(Model):
+    server_now: datetime
+    session_id: UUID
+    session_status: Literal['active', 'completed', 'abandoned']
+    items: list[ItemOut]
 
 
 class RetryResponse(Model):

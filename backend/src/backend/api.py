@@ -9,9 +9,9 @@ from sqlmodel import Session, select
 from backend import study
 from backend.api_errors import fail
 from backend.api_schemas import (ActiveSessionsResponse, CatalogResponse, EmptyRequest, ErrorResponse, GradeRequest,
-                                 GradeResponse, ItemResponse, PositionRequest, ResultResponse, RetryRequest,
-                                 RetryResponse, SaveAnswerRequest, SessionResponse, StudyCreate)
-from backend.models import AnswerAttempt, Question, QuestionOption, QuizItem, QuizSession, utc_now
+                                 GradeResponse, ItemResponse, ItemsResponse, PositionRequest, ResultResponse, RetryRequest,
+                                 RetryResponse, SaveAnswerRequest, SessionResponse, StudyCreate, ProgressRequest, ProgressResponse)
+from backend.models import Question, QuestionOption, QuizSession, utc_now
 
 
 def get_session(request: Request):
@@ -70,6 +70,11 @@ def get_item(session_id: UUID, item_id: UUID, db: DB):
     return study.item_response(db, quiz, study.get_item(db, quiz, item_id))
 
 
+@router.get('/quiz-sessions/{session_id}/items', response_model=ItemsResponse)
+def get_items(session_id: UUID, db: DB):
+    return study.items_response(db, study.get_quiz(db, session_id))
+
+
 @router.patch('/quiz-sessions/{session_id}/items/{item_id}/answer', response_model=ItemResponse)
 def save_answer(session_id: UUID, item_id: UUID, body: SaveAnswerRequest, db: DB):
     quiz = study.get_quiz(db, session_id)
@@ -101,6 +106,11 @@ def finish(session_id: UUID, body: EmptyRequest, db: DB):
     return study.result_response(db, quiz)
 
 
+@router.post('/study-sessions/{session_id}/progress', response_model=ProgressResponse)
+def sync_progress(session_id: UUID, body: ProgressRequest, db: DB):
+    return study.sync_progress(db, study.get_quiz(db, session_id), body)
+
+
 @router.get('/quiz-sessions/{session_id}/result', response_model=ResultResponse)
 def result(session_id: UUID, db: DB):
     return study.result_response(db, study.get_quiz(db, session_id))
@@ -113,14 +123,9 @@ def image(request: Request, db: DB,
     question = db.exec(select(Question).where(Question.question_key == question_key)).one_or_none()
     if question is None:
         fail('RESOURCE_NOT_FOUND', '이미지를 찾을 수 없습니다.', 404)
-    blocks = list(question.content_blocks)
+    blocks = list(question.content_blocks) + list(question.explanation_blocks)
     for option in db.exec(select(QuestionOption).where(QuestionOption.question_id == question.id)):
         blocks.extend(option.content_blocks)
-    graded = db.exec(select(AnswerAttempt.id).join(QuizItem, AnswerAttempt.quiz_item_id == QuizItem.id)
-                     .join(QuizSession, QuizItem.quiz_session_id == QuizSession.id)
-                     .where(AnswerAttempt.question_id == question.id, AnswerAttempt.graded_at.is_not(None), QuizSession.mode == 'study').limit(1)).first()
-    if graded:
-        blocks.extend(question.explanation_blocks)
     src = f'/api/v1/question-assets/{question_key}/{file_name}'
     root = Path(request.app.state.assets_root).resolve()
     target = (root / question_key / file_name).resolve()

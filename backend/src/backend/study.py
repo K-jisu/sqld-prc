@@ -97,18 +97,93 @@ def session_response(db, quiz):
                        'graded': any(a.graded_at for a in attempts[i.id])} for i, q, c in rows]}
 
 
+def item_data(item, question, chapter, attempt, options, include_solution=False):
+    review = None
+    solution = None
+    if attempt.graded_at or include_solution:
+        correct = next((o for o in options if o.is_correct), None)
+        if correct is None:
+            fail('SERVICE_UNAVAILABLE', '문항의 정답 정보를 확인할 수 없습니다.', 503)
+        solution = {'correct_option_id': correct.id, 'explanation_blocks': question.explanation_blocks}
+        if attempt.graded_at:
+            review = {'is_correct': attempt.is_correct, **solution}
+    return {'id': item.id, 'position': item.position,
+                     'question': {'id': question.id, 'question_key': question.question_key, 'subject_id': chapter.subject_id,
+                                  'chapter_id': chapter.id, 'source_number': question.source_number, 'status': question.status,
+                                  'type': 'single_choice', 'content_blocks': question.content_blocks,
+                                  'options': [{'id': o.id, 'option_number': o.option_number, 'content_blocks': o.content_blocks} for o in options]},
+                     'attempt': attempt_data(attempt), 'review': review, 'solution': solution if include_solution else None}
+
+
 def item_response(db, quiz, item):
     question = db.get(Question, item.question_id)
     chapter = db.get(Chapter, question.chapter_id)
     attempt = selected_attempt(item_attempts(db, item), quiz.status == 'completed')
     options = db.exec(select(QuestionOption).where(QuestionOption.question_id == question.id).order_by(QuestionOption.option_number)).all()
     return {'server_now': utc_now(), 'session_id': quiz.id, 'session_status': quiz.status,
-            'item': {'id': item.id, 'position': item.position,
-                     'question': {'id': question.id, 'question_key': question.question_key, 'subject_id': chapter.subject_id,
-                                  'chapter_id': chapter.id, 'source_number': question.source_number, 'status': question.status,
-                                  'type': 'single_choice', 'content_blocks': question.content_blocks,
-                                  'options': [{'id': o.id, 'option_number': o.option_number, 'content_blocks': o.content_blocks} for o in options]},
-                     'attempt': attempt_data(attempt), 'review': review_data(db, attempt, question) if attempt.graded_at else None}}
+            'item': item_data(item, question, chapter, attempt, options, quiz.mode == 'study')}
+
+
+def items_response(db, quiz):
+    rows, attempts = quiz_rows(db, quiz)
+    options = defaultdict(list)
+    for option in db.exec(select(QuestionOption).join(QuizItem, QuizItem.question_id == QuestionOption.question_id)
+                          .where(QuizItem.quiz_session_id == quiz.id).order_by(QuestionOption.option_number)):
+        options[option.question_id].append(option)
+    return {'server_now': utc_now(), 'session_id': quiz.id, 'session_status': quiz.status,
+            'items': [item_data(i, q, c, selected_attempt(attempts[i.id], quiz.status == 'completed'), options[q.id], quiz.mode == 'study') for i, q, c in rows]}
+
+
+def sync_progress(db, quiz, request):
+    require_active(quiz)
+    incoming = request.answers
+    if len({a.attempt_id for a in incoming}) != len(incoming):
+        fail('VALIDATION_ERROR', '중복된 풀이 기록입니다.', 422)
+    items = {i.id: i for i in db.exec(select(QuizItem).where(QuizItem.quiz_session_id == quiz.id))}
+    options = {o.id: o for o in db.exec(select(QuestionOption).where(QuestionOption.question_id.in_([i.question_id for i in items.values()])))}
+    correct = {o.question_id: o.id for o in options.values() if o.is_correct}
+    found = db.exec(select(AnswerAttempt).where(or_(AnswerAttempt.quiz_item_id.in_(list(items)),
+                    AnswerAttempt.id.in_([a.attempt_id for a in incoming])))).all()
+    by_id = {a.id: a for a in found}
+    history = defaultdict(list)
+    for attempt in found:
+        if attempt.quiz_item_id in items:
+            history[attempt.quiz_item_id].append(attempt)
+    for record in sorted(incoming, key=lambda a: (str(a.item_id), a.attempt_number)):
+        item = items.get(record.item_id)
+        if item is None:
+            fail('RESOURCE_NOT_FOUND', '학습에 속하지 않은 문항입니다.', 404)
+        option = options.get(record.selected_option_id)
+        if record.selected_option_id is not None and (option is None or option.question_id != item.question_id):
+            fail('INVALID_OPTION', '이 문항의 보기를 선택해 주세요.', 422)
+        attempt = by_id.get(record.attempt_id)
+        if attempt and (attempt.quiz_item_id != item.id or attempt.attempt_number != record.attempt_number):
+            fail('PROGRESS_CONFLICT', '풀이 기록이 변경되었습니다. 현재 학습을 다시 불러와 주세요.')
+        if attempt is None:
+            previous = max(history[item.id], key=lambda a: a.attempt_number)
+            if record.attempt_number != previous.attempt_number + 1 or previous.graded_at is None:
+                fail('PROGRESS_CONFLICT', '이전 풀이를 저장한 뒤 다시 풀 수 있습니다.')
+            # 이전 draft의 채점을 먼저 반영해 문항별 미채점 시도 하나 제약을 유지한다.
+            db.flush()
+            attempt = AnswerAttempt(id=record.attempt_id, quiz_item_id=item.id, question_id=item.question_id,
+                                    attempt_number=record.attempt_number)
+            by_id[attempt.id] = attempt
+            history[item.id].append(attempt)
+        if attempt.graded_at is not None:
+            if not record.graded or attempt.selected_option_id != record.selected_option_id:
+                fail('ANSWER_ALREADY_GRADED', '이미 채점한 풀이 기록은 변경할 수 없습니다.')
+            continue
+        attempt.selected_option_id = record.selected_option_id
+        if record.graded:
+            if record.selected_option_id is None:
+                fail('ANSWER_REQUIRED', '채점할 답안을 선택해 주세요.', 422)
+            if item.question_id not in correct:
+                fail('SERVICE_UNAVAILABLE', '문항의 정답 정보를 확인할 수 없습니다.', 503)
+            attempt.is_correct = record.selected_option_id == correct[item.question_id]
+            attempt.graded_at = utc_now()
+        db.add(attempt)
+    db.flush()
+    return {'server_now': utc_now(), 'saved_attempt_ids': [a.attempt_id for a in incoming]}
 
 
 def catalog(db):

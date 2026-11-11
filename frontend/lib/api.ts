@@ -36,6 +36,7 @@ export const keys = {
   active: ["active-sessions"] as const,
   session: (id: string) => ["session", id] as const,
   item: (session: string, item: string) => ["item", session, item] as const,
+  items: (session: string) => ['session-items', session] as const,
   result: (id: string) => ["result", id] as const,
 };
 
