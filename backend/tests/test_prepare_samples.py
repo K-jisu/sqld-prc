@@ -2,11 +2,18 @@ import importlib.util
 from pathlib import Path
 import json
 import zipfile
+import xml.etree.ElementTree as ET
 
 import pytest
 
 
 SCRIPT = Path(__file__).parents[1] / "scripts" / "prepare_samples.py"
+
+
+def test_short_underlined_question_has_no_wide_empty_margin(converter):
+    root=ET.fromstring(converter.underline_svg('합성 <u>질문</u>?'))
+    assert int(root.attrib['width'])<400
+    assert ''.join(node.text or '' for node in root.iter() if node.tag.endswith('text'))=='합성 질문?'
 
 
 @pytest.fixture

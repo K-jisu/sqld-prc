@@ -165,8 +165,10 @@ def import_questions(engine, questions: list[QuestionInput]) -> int:
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description="비공개 문제 샘플 검증·입력")
-    parser.add_argument("--input", type=Path, default=Path(__file__).resolve().parents[3] / "data/private/phase2/samples.json")
+    parser = argparse.ArgumentParser(description="비공개 문제은행 검증·입력")
+    directory = Path(__file__).resolve().parents[3] / "data/private/phase2"
+    default_input = directory / "questions.json"
+    parser.add_argument("--input", type=Path, default=default_input if default_input.is_file() else directory / "samples.json")
     parser.add_argument("--assets", type=Path)
     parser.add_argument("--validate-only", action="store_true")
     args = parser.parse_args(argv)

@@ -187,11 +187,11 @@ def create_study(db, session_id, request):
     quiz = QuizSession(id=session_id, mode='study', study_filter=criteria)
     db.add(quiz)
     db.flush()
-    for position, question in enumerate(questions, 1):
-        item = QuizItem(quiz_session_id=quiz.id, question_id=question.id, position=position)
-        db.add(item)
-        db.flush()
-        db.add(AnswerAttempt(quiz_item_id=item.id, question_id=question.id, attempt_number=1))
+    items = [QuizItem(quiz_session_id=quiz.id, question_id=question.id, position=position)
+             for position, question in enumerate(questions, 1)]
+    db.add_all(items)
+    db.flush()
+    db.add_all([AnswerAttempt(quiz_item_id=item.id, question_id=item.question_id, attempt_number=1) for item in items])
     db.flush()
     return quiz, True
 

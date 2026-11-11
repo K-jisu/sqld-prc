@@ -63,11 +63,11 @@ FastAPI를 중심으로 기존 DB·API 설계에서 잡은 구성이다. FastAPI
 - API는 REST·JSON 방식이며 브라우저 기준 경로는 `/api/v1`이다.
 - 프론트와 백엔드를 별도 배포해도 브라우저는 같은 출처의 API 경로를 사용하도록 연결한다.
 - DB 연결 정보는 백엔드에서만 관리한다. 앱용 비밀번호와 쿠키 서명 키는 사용하지 않는다.
-- 접근 제한은 배포 플랫폼이 담당한다. 화면·API·문항 이미지와 별도 백엔드의 모든 직접 주소를 보호하며 실제 적용은 배포 단계에서 검증한다.
+- 접근 제한은 배포 플랫폼이 담당한다. 현재 화면과 Python API를 한 Vercel 프로젝트에 배포했고 모든 배포 주소의 화면·API·이미지 접근 차단을 확인했다.
 - Python 의존성은 프로젝트 전용 가상환경으로 분리한다.
 - 백엔드 패키지 관리자는 uv다. `pyproject.toml`, `uv.lock`, `.venv/`로 선언·잠금·가상환경을 관리한다.
 
-uv 프로젝트 초기화와 의존성 설치를 확인했다. 현재 `requires-python`은 `>=3.14`, `.python-version`은 `3.14`다. 2026-11-11에는 기존 SQLModel·psycopg·Alembic으로 DB 모델 7개·마이그레이션·샘플 입력을 구현했다. 로컬 PostgreSQL 16과 실제 Neon PostgreSQL 18.6에서 각각 전체 테스트 71개가 통과했고, Neon 앱 DB에 draft 샘플 8개를 입력·재입력했다. 배포 환경의 Python 호환성은 아직 확인하지 않았다.
+uv 프로젝트 초기화와 의존성 설치를 확인했다. 현재 `requires-python`은 `>=3.14`, `.python-version`은 `3.14`다. 2026-11-11에는 기존 SQLModel·psycopg·Alembic으로 DB 모델 7개·마이그레이션·샘플 입력을 구현했다. 로컬 PostgreSQL 16과 실제 Neon PostgreSQL 18.6에서 각각 전체 테스트 71개가 통과했고, Neon 앱 DB에 draft 샘플 8개를 입력·재입력했다. Python3.14 함수의 Vercel 배포와 실제 API·DB 동작도 확인했다.
 
 ## 4. 데이터베이스와 인증
 
@@ -81,13 +81,13 @@ uv 프로젝트 초기화와 의존성 설치를 확인했다. 현재 `requires-
 | 항목 | 현재 상태 |
 |---|---|
 | 배포 목적 | 모바일에서도 쓰기 위한 비공개 배포. 필수 |
-| 프론트 배포 | 기존 검토안은 Vercel. 실제 배포 설정은 아직 확인하지 않음 |
-| 백엔드 배포 | 기존 검토안은 Vercel의 FastAPI 배포. 최종 설정과 호환성은 배포 단계에서 확인 |
-| 접근 제한 | Vercel Authentication + All Deployments. 앱 자체 로그인·로그아웃 제외, 실제 설정·우회 차단은 배포 단계에서 검증 |
-| 문항 이미지 저장 | Git 제외 경로에서 API로 제공. 배포 접근 제한 적용과 영구 저장 위치는 배포 단계에서 검증 |
+| 프론트 배포 | Vercel Next.js, https://sqld-prc-study.vercel.app |
+| 백엔드 배포 | 같은 Vercel 프로젝트의 Python3.14 FastAPI 함수. 별도 공개 백엔드 주소 없음 |
+| 접근 제한 | Vercel Authentication + All Deployments 적용. 운영 고정 주소·개별 배포 주소의 비인증 접근 차단 확인. 임시 점검 키 폐기 완료 |
+| 문항 이미지 저장 | Git 제외 원본에서 참조된 이미지만 Python 함수 번들에 포함하고 API로 제공. 직접 정적 경로는404 |
 | DB 배포 | Neon 사용으로 결정. 무료 플랜으로 시작하는 방향이며 실제 한도는 사용 시 확인 |
 | 백엔드 테스트 | 앱·변환·DB 입력·학습 API를 포함해 로컬 PostgreSQL 16과 실제 Neon PostgreSQL 18.6에서 각각 104개 통과. TEST_DATABASE_URL 없는 실행은 DB 통합 검증을 건너뜀 |
-| 브라우저 테스트 | Playwright 1.65.0과 Edge로 합성 HTTP 경계 테스트 17개 통과. 별도로 프로덕션 Next.js·실제 FastAPI·격리된 PostgreSQL16으로 학습 전체 흐름 확인. 실제 휴대폰·배포 접근 제한은 미검증 |
+| 브라우저 테스트 | 기존17개 통과. 실제 클라우드·분리된 Neon 테스트 스키마에서 생성·저장·새로고침·채점·재풀이·이미지·종료·결과 확인. 실제 앱 DB는 읽기만 확인, 물리 휴대폰 확인은 대기 |
 
 ## 6. 프로젝트 구조와 진행 방식
 

@@ -53,7 +53,7 @@ uv run --env-file .env --locked alembic upgrade head
 uv run --env-file .env --locked python -m backend.import_questions
 ```
 
-입력 기본값은 루트의 `data/private/phase2/samples.json`과 같은 폴더의 `assets/`입니다. 다른 입력을 쓰려면 `--input 경로 --assets 이미지폴더`를 지정합니다. 문항 번호·책 범위(1과목 50/2과목 126, 문제 PDF 224/해설 PDF 64쪽), 보기 네 개·정답 하나·페이지·이미지 존재와 경로를 검사합니다. 사용자 결정으로 II-61~64·69~70·79~81은 입력에서 제외합니다.
+입력 기본값은 루트의 `data/private/phase2/questions.json`과 같은 폴더의 `assets/`이며 전체 파일이 없을 때만 `samples.json`을 사용합니다. 전체 JSON은 `uv run --locked python scripts/prepare_bank.py`로 생성합니다. 다른 입력을 쓰려면 `--input 경로 --assets 이미지폴더`를 지정합니다. 문항 번호·책 범위(1과목50/2과목126, 문제 PDF224/해설 PDF64쪽), 보기 네 개·정답 하나·페이지·이미지 존재와 경로를 검사합니다. 사용자 결정으로 II-61~64·69~70·79~81은 입력에서 제외해 전체167개를 사용합니다.
 
 문항 키와 보기 번호로 기존 UUID를 유지해 갱신하며, 채점 완료 답안과 과거 점수는 수정하지 않습니다. 입력은 한 트랜잭션으로 처리합니다. 참조 중인 보기 삭제는 문항 키와 사유를 알리고 전체 입력을 취소합니다. 같은 내용의 draft 재입력으로 이미 게시한 문항을 draft로 되돌리지 않습니다. 게시된 문항에 검수 대기 상태의 다른 내용을 덮어쓰는 것은 거부합니다.
 
@@ -77,11 +77,11 @@ uv run --env-file .env --locked python -m backend.import_questions
 
 변경 요청은 APP_ORIGIN과 동일한 Origin 헤더와 application/json을 요구합니다. UUID·보기 소속·시도·세션 상태를 서버에서 검사합니다. 생성은 트랜잭션 advisory lock, 변경·종료는 부모 세션 행 잠금으로 동시에 도착한 요청도 한 번씩 처리합니다.
 
-현재 정답·해설은 교정된 문제은행을 따르며 당시 채점 결과·선택·시각·점수는 유지합니다. 앱 인증은 없습니다. 운영 배포에서는 Vercel Authentication의 All Deployments로 화면·API·이미지와 별도 백엔드 직접 주소를 모두 보호해야 합니다. 실제 설정과 우회 차단 검증은 아직 수행하지 않았습니다.
+현재 정답·해설은 교정된 문제은행을 따르며 당시 채점 결과·선택·시각·점수는 유지합니다. 앱 인증은 없습니다. 화면과 같은 Vercel 프로젝트의 Python 함수로 배포했고 Authentication의 All Deployments를 적용했습니다. 운영·개별 배포 주소의 비인증 접근 차단과 인증된 실제 API를 확인했습니다. [배포 결과](../2026-11-11-private-deployment-report.md)를 참고합니다.
 
 API 문서: `/docs`, 실제 계약: `/openapi.json`. 루트 `2026-10-28-openapi.json`은 현재 구현된 12개 작업의 생성 결과이며, 계획 단계의 모의시험·통계 API는 포함하지 않습니다.
 
-QUESTION_ASSETS_DIR을 비우면 루트 data/private/phase2/assets를 사용합니다. 배포용 영구 저장 위치는 후속 단계에서 설정합니다. 이미지와 교재 자료는 Git에 넣지 않습니다.
+QUESTION_ASSETS_DIR을 비우면 루트 data/private/phase2/assets를 사용합니다. 배포에서는 참조 이미지만 Python 함수 번들에 포함하고 진입점이 절대 경로를 설정합니다. 이미지와 교재 자료는 Git에 넣지 않습니다.
 
 ## 의존성 추가
 

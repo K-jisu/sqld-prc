@@ -161,7 +161,7 @@ def underline_svg(text):
     plain = text.replace("<u>", "").replace("</u>", "")
     # 원문의 밑줄을 이미지 안에 보존한다. 임의 HTML을 블록에 넣지 않는다.
     tokens = re.split(r"(<u>|</u>)", text)
-    x, y, underline = 12, 30, False
+    x, y, underline, max_x = 12, 30, False, 12
     shapes = []
     for token in tokens:
         if token in ("<u>", "</u>"):
@@ -175,8 +175,10 @@ def underline_svg(text):
                 style = ' text-decoration="underline"' if underline else ""
                 shapes.append(f'<text x="{x}" y="{y}"{style}>{html.escape(char)}</text>')
                 x += size
-    return (f'<svg xmlns="http://www.w3.org/2000/svg" width="790" height="{y+15}" '
-            f'viewBox="0 0 790 {y+15}"><title>{html.escape(plain)}</title>'
+                max_x = max(max_x, x)
+    width = max_x + 12
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{y+15}" '
+            f'viewBox="0 0 {width} {y+15}"><title>{html.escape(plain)}</title>'
             f'<rect width="100%" height="100%" fill="white"/>'
             f'<g font-family="Malgun Gothic, sans-serif" font-size="20">{"".join(shapes)}</g></svg>')
 

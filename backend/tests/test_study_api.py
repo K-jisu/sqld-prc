@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import func
+from sqlalchemy import event, func
 from sqlmodel import Session, select
 
 from backend.import_questions import import_questions, parse_questions
@@ -60,6 +60,26 @@ def choose_and_grade(client, path, item, number=2):
     selected = item['question']['options'][number - 1]['id']
     assert client.patch(path + '/answer', json={'attempt_id': attempt_id, 'selected_option_id': selected}).status_code == 200
     return client.post(path + '/grade', json={'attempt_id': attempt_id})
+
+
+def test_whole_bank_creation_uses_bounded_database_roundtrips(api):
+    client,engine=api
+    with Session(engine) as db,db.begin():
+        for n in range(3,23):
+            db.add(Question(question_key=f'S1-Q{n:03}',chapter_id=11,source_number=n,status='published',
+                content_blocks=[{'type':'text','text':'합성 대량 문항'}],explanation_blocks=[{'type':'text','text':'합성 해설'}],
+                question_page_start=1,question_page_end=1,answer_page_start=1,answer_page_end=1))
+    statements=[]
+    def count(connection,cursor,statement,parameters,context,executemany):
+        statements.append(statement)
+        assert len(statements)<=20,'문항 수에 비례해 DB 왕복이 늘어나면 전체 학습 생성이 지연됩니다.'
+    event.listen(engine,'before_cursor_execute',count)
+    try:
+        created=start(client)
+    finally:
+        event.remove(engine,'before_cursor_execute',count)
+    assert created.status_code==201
+    assert created.json()['session']['item_count']==22
 
 
 @pytest.mark.parametrize('headers,body,code', [

@@ -1,12 +1,18 @@
 # SQLD Practice
 
-SQLD 문제풀이와 모의시험을 혼자 공부하기 위한 개인 학습 앱입니다. PC와 모바일에서 쓰기 위해 비공개로 배포하며, Vercel Authentication의 All Deployments로 화면·API·문항 이미지의 모든 직접 주소를 보호합니다. 앱 자체 로그인·로그아웃은 두지 않습니다. 실제 배포 보호 설정은 아직 수행하지 않았습니다.
+SQLD 문제풀이와 모의시험을 혼자 공부하기 위한 개인 학습 앱입니다. Vercel Authentication의 All Deployments로 화면·API·문항 이미지의 모든 직접 주소를 보호해 비공개 배포했습니다. 앱 자체 로그인·로그아웃은 두지 않습니다.
 
 - 프론트: Next.js App Router, React, TypeScript, Tailwind CSS, TanStack Query
 - 백엔드: Python, FastAPI, SQLModel, psycopg, Alembic
 - DB: Neon PostgreSQL
 
 이 저장소는 공개 상태입니다. 교재 PDF·변환한 문항 데이터·문항 이미지는 커밋하지 않습니다.
+
+## 휴대폰에서 학습하기
+
+[비공개 학습 앱](https://sqld-prc-study.vercel.app)에 접속해 본인 Vercel 계정으로 확인합니다. `검수 대기 문항 포함`을 선택하면 전체 **167문항(1과목50·2과목117)**을 풀 수 있습니다. 합의한 누락9문항만 제외했습니다. 기존8문항 학습은 유지되므로 전체를 풀려면 홈에서 새 학습을 시작합니다. PC에서도 같은 주소를 사용합니다. 모의시험은 아직 구현하지 않았습니다.
+
+Next.js와 FastAPI를 한 프로젝트에 배포했고 Neon에 풀이를 저장합니다. 인증 없는 화면·API·이미지 접근 차단과 실제 클라우드 학습 흐름을 확인했습니다. 물리 휴대폰에서의 최종 확인은 남아 있습니다. [배포·검증 결과와 재배포 방법](2026-11-11-private-deployment-report.md)을 참고합니다.
 
 ## 개발 실행
 
@@ -47,7 +53,7 @@ http://127.0.0.1:8000/docs 에서 확인합니다.
 
 4단계는 과목·단원 조회, 학습 생성·이어 풀기, 답안 저장·채점·재풀이·종료와 문항 이미지 API를 구현했고 GitHub main의 `75aba3b`로 업로드했습니다. [4단계 구현·검증 결과](2026-11-11-phase4-study-api-report.md)와 [API 명세](2026-10-28-api-design.md)를 참고합니다.
 
-5단계에서는 밝고 차분한 학습 노트 화면에 실제 API를 연결했습니다. 전체·과목·단원별 학습, 이어 풀기, 자동 저장, 한 문항 채점·해설·재풀이, 종료·결과·복습을 사용할 수 있습니다. 현재 실제 샘플은 draft 8문항이므로 `검수 대기 문항 포함`을 선택해야 풀 수 있습니다. 이 선택으로 검수 상태가 바뀌지는 않습니다. [5단계 구현·검증 결과](2026-11-11-phase5-learning-ui-report.md)를 참고합니다. 모의시험·통계·비공개 배포는 후속 단계입니다.
+5단계에서는 밝고 차분한 학습 노트 화면에 실제 API를 연결했습니다. 전체·과목·단원별 학습, 이어 풀기, 자동 저장, 한 문항 채점·해설·재풀이, 종료·결과·복습을 사용할 수 있습니다. 초기샘플8개에서 전체167개로 추가 등록했고 모두 draft이므로 `검수 대기 문항 포함`을 선택합니다. 이 선택으로 검수 상태가 바뀌지는 않습니다. [5단계 결과](2026-11-11-phase5-learning-ui-report.md)와 [전체 문항 등록 결과](2026-11-11-full-question-bank-report.md)를 참고합니다. 모의시험·통계는 후속 단계이며 비공개 학습 배포는 완료했습니다.
 
 프론트의 `frontend/`에서:
 
@@ -77,9 +83,12 @@ uv run pytest -q
 ```bash
 cd backend
 uv run --locked python scripts/prepare_samples.py
+uv run --locked python scripts/prepare_bank.py
 ```
 
 자료는 Git에서 제외한 `data/private/phase2/`에 생성됩니다. 생성 결과는 재실행 시 갱신되지만 `user-review.md`의 사용자 기록은 보존합니다. 샘플은 자동으로 검수 완료 처리하지 않습니다. [2단계 결과와 남은 검수](2026-11-10-phase2-report.md)를 참고합니다.
+
+첫 명령은 ZIP 추출·대표샘플8개, 두 번째는 전체167개 `questions.json`을 만듭니다. 기존 `samples.json`과 사용자 확인 기록은 그대로 보존합니다. DB 입력 기본값과 배포 이미지 선택은 `questions.json`이 있으면 전체를 사용하고 없을 때만 샘플을 사용합니다.
 
 원본 대조로 확인한 교정은 같은 폴더의 `sample-corrections.json`에 보관합니다. 이 파일도 비공개 입력 자료이므로 ZIP과 함께 보관합니다. 재실행 때 원문이 교정 대상과 일치하지 않으면 오류로 알립니다.
 
