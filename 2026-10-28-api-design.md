@@ -380,3 +380,10 @@ TanStack Query는 조회 캐시, mutation은 생성·저장·채점·종료를 �
 앱 인증의 30일 유지 제안은 폐기했다. 실제 배포 도메인·프록시·접근 제한 설정·문항 이미지의 영구 저장 위치는 비공개 배포 단계에서 확정한다.
 
 원문 전수 문항·정답 대응·단일 선택 외 유형은 검수 전이다. 다른 유형이 있으면 선택/정답 입력 스키마를 데이터 입력 전에 보완한다.
+
+## 2026-11-12 구현 갱신
+
+- 학습은 문항 일괄 응답의 solution을 이용해 브라우저에서 즉시 개별/일괄 채점한다. POST /study-sessions/{id}/progress에 변경 시도들을 묶어서 저장하며 종료 전에 전송한다.
+- 모의고사 생성·제출·포기와 조회/만료를 구현했다. POST /mock-sessions/{id}/progress는 미채점 첫 시도의 선택만 묶어서 받는다. 시험 진행 응답에는 solution과 review를 보내지 않으며 제출/시간 만료 후 review를 반환한다.
+- GET /me/stats, /me/wrong-answers, /me/mock-sessions를 구현했다. 최신 유효 채점은 문항별 graded_at DESC, id DESC 기준이다.
+- API의 현재 필드 계약은 backend/src/backend/api_schemas.py와 FastAPI 자동 OpenAPI가 기준이다. 저장소의 날짜가 고정된 정적 JSON과 이전 검증 기준에는 예전 학습 정책이 남아 있으므로 최신 학습에 적용하지 않는다. 이번 기능에 대해 별도 실행 검증은 하지 않았다.

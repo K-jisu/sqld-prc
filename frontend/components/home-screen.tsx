@@ -7,6 +7,7 @@ import { useRef, useState } from "react";
 import { api, keys } from "@/lib/api";
 import type { ActiveSessions, Catalog, SessionResponse, StudyFilter } from "@/lib/types";
 import { AppHeader, Arrow, ErrorNotice, LoadingPanel } from "./ui";
+import { MockStart } from './mock-start';
 
 const scopeLabels = { all: "전체 범위", subjects: "선택 과목", chapters: "선택 단원", previous_session: "이전 풀이 목록", wrong_answers: "오답 복습" };
 
@@ -61,7 +62,7 @@ function StudyForm({ catalog }: { catalog: Catalog }) {
     <div className="review-choice"><label className="checkbox-label"><input type="checkbox" checked={includeDrafts} onChange={(e) => setIncludeDrafts(e.target.checked)} disabled={create.isPending}/><span>검수 대기 문항 포함</span></label>
       <p>교재와 최종 대조하기 전의 문항도 풀어봅니다. 검수 완료 상태로 바뀌지는 않습니다.</p>
     </div>
-    {!count && <p className="empty-hint">선택한 범위에 학습할 문항이 없습니다.{drafts > 0 && !includeDrafts && ' 검수 대기 문항을 포함하면 샘플을 풀어볼 수 있습니다.'}</p>}
+    {!count && <p className="empty-hint">선택한 범위에 학습할 문항이 없습니다.{drafts > 0 && !includeDrafts && ' 검수 대기 문항을 포함하면 문제를 풀어볼 수 있습니다.'}</p>}
     {create.isError && <ErrorNotice error={create.error}/>}
     <div className="start-row"><p><span className="muted">선택한 범위</span><strong>{count}<span>문항</span></strong></p>
       <button className="button primary" disabled={!count || create.isPending} onClick={start}>{create.isPending ? '학습을 준비하는 중' : `${count}문항 학습 시작`}<Arrow/></button>
@@ -75,16 +76,16 @@ function ActivePanel() {
     {active.isPending ? <LoadingPanel label="진행 중인 학습을 불러오는 중"/>
       : active.isError ? <ErrorNotice error={active.error} onRetry={() => void active.refetch()}/>
         : active.data.sessions.length === 0 ? <div className="empty-panel"><p>진행 중인 학습이 없습니다</p><span>새 학습을 시작하면 이곳에서 이어 풀 수 있습니다.</span></div>
-          : <div className="session-list">{active.data.sessions.map((session) => <Link className="session-row" href={`/study/${session.id}`} key={session.id}>
-            <div className="session-identity"><strong>{scopeLabels[session.study_filter.scope] ?? '학습'} · {session.item_count}문항</strong><span>{new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', timeZone: 'Asia/Seoul' }).format(new Date(session.started_at))} 시작{session.study_filter.include_drafts && ' · 검수 대기 포함'}</span></div>
-            <span className="session-progress">채점 {session.graded_item_count}/{session.item_count}<span>현재 {session.current_position}번</span></span><Arrow/>
+          : <div className="session-list">{active.data.sessions.map((session) => <Link className="session-row" href={`/${session.mode === 'mock' ? 'mock' : 'study'}/${session.id}`} key={session.id}>
+            <div className="session-identity"><strong>{session.mode === 'mock' ? '모의고사' : scopeLabels[session.study_filter?.scope ?? 'all']} · {session.item_count}문항</strong><span>{new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', timeZone: 'Asia/Seoul' }).format(new Date(session.started_at))} 시작{session.study_filter?.include_drafts && ' · 검수 대기 포함'}</span></div>
+            <span className="session-progress">{session.mode === 'mock' ? `선택 ${session.answered_item_count}` : `채점 ${session.graded_item_count}`}/{session.item_count}<span>현재 {session.current_position}번</span></span><Arrow/>
           </Link>)}</div>}
   </section>;
 }
 
 export function HomeScreen() {
   const catalog = useQuery({ queryKey: keys.catalog, queryFn: ({ signal }) => api<Catalog>('/catalog', { signal }) });
-  return <><AppHeader><a className="header-link" href="#ongoing">이어풀기<Arrow/></a></AppHeader><main id="main" className="home-main">
+  return <><AppHeader><nav className="study-toolbar"><Link className="header-link" href="/records">내 기록<Arrow/></Link><a className="header-link" href="#ongoing">이어풀기<Arrow/></a></nav></AppHeader><main id="main" className="home-main">
     <div className="page-heading"><h1>학습하기</h1><p>범위를 정하고, 한 문항씩 차분하게 풀어보세요.</p></div>
     <div className="home-grid"><div>{catalog.isPending ? <LoadingPanel label="문제은행을 불러오는 중"/>
       : catalog.isError ? <ErrorNotice error={catalog.error} onRetry={() => void catalog.refetch()}/>
@@ -92,6 +93,7 @@ export function HomeScreen() {
       <aside className="home-note"><svg width="42" height="42" viewBox="0 0 42 42" fill="none" aria-hidden="true"><path d="M9 6h21a3 3 0 0 1 3 3v27H12a3 3 0 0 1-3-3V6Z" stroke="currentColor" strokeWidth="1.4"/><path d="M15 14h12M15 20h12M15 26h7M9 31h24" stroke="currentColor" strokeWidth="1.4"/></svg>
         <h2>한 문항에 집중하기</h2><p>답안을 고르면 자동으로 저장됩니다. 정답을 확인한 뒤 해설을 읽고, 같은 문항을 다시 풀 수 있습니다.</p><p className="muted">학습을 마칠 때 직접 종료하면 지금까지의 결과를 확인할 수 있습니다.</p>
       </aside></div>
+    {catalog.data && <MockStart catalog={catalog.data}/>}
     <ActivePanel/>
   </main><footer className="app-footer">나의 속도로, 한 문항씩.</footer></>;
 }

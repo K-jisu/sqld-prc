@@ -77,6 +77,10 @@ class EmptyRequest(Model):
     pass
 
 
+class MockCreate(Model):
+    include_drafts: StrictBool = False
+
+
 class ProgressAnswer(Model):
     item_id: UUID
     attempt_id: UUID
@@ -261,6 +265,83 @@ class StudyResult(Model):
     items: list[ResultItem]
 
 
+class SubjectScore(Model):
+    subject_id: int
+    item_count: int
+    correct_item_count: int
+    score: int
+    max_score: int
+    minimum_score: int
+    failed: bool
+
+
+class MockSummary(Model):
+    item_count: int
+    answered_item_count: int
+    unanswered_item_count: int
+    correct_item_count: int
+    incorrect_item_count: int
+    score: int
+    max_score: int
+    accuracy_percent: float
+    passed: bool
+    subjects: list[SubjectScore]
+
+
+class MockResult(Model):
+    mode: Literal['mock'] = 'mock'
+    session: SessionOut
+    summary: MockSummary
+    items: list[ResultItem]
+
+
 class ResultResponse(Model):
     server_now: datetime
-    result: StudyResult
+    result: Annotated[StudyResult | MockResult, Field(discriminator='mode')]
+
+
+class Counts(Model):
+    total_question_count: int
+    graded_question_count: int
+    correct_question_count: int
+    wrong_question_count: int
+    ungraded_question_count: int
+    accuracy_percent: float
+
+
+class GroupCounts(Counts):
+    id: int
+    name: str
+    subject_id: int | None = None
+
+
+class StatsResponse(Model):
+    server_now: datetime
+    overall: Counts
+    subjects: list[GroupCounts]
+    chapters: list[GroupCounts]
+
+
+class WrongAnswer(Model):
+    question_id: UUID
+    question_key: str
+    subject_id: int
+    chapter_id: int
+    chapter_name: str
+    last_graded_at: datetime
+    available: bool
+
+
+class WrongAnswersResponse(Model):
+    server_now: datetime
+    items: list[WrongAnswer]
+
+
+class MockHistoryItem(Model):
+    session: SessionOut
+    summary: MockSummary | None
+
+
+class MockHistoryResponse(Model):
+    server_now: datetime
+    items: list[MockHistoryItem]

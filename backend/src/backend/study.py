@@ -15,8 +15,6 @@ def get_quiz(db: Session, session_id: UUID) -> QuizSession:
     quiz = db.get(QuizSession, session_id, with_for_update=True)
     if quiz is None:
         fail('RESOURCE_NOT_FOUND', '학습 기록을 찾을 수 없습니다.', 404)
-    if quiz.mode != 'study':
-        fail('MODE_MISMATCH', '학습 전용 작업입니다.')
     return quiz
 
 
@@ -322,9 +320,13 @@ def retry(db, quiz, item, request):
 
 
 def result_response(db, quiz):
+    if quiz.status == 'abandoned':
+        fail('SESSION_ABANDONED', '포기한 시험은 결과를 볼 수 없습니다.')
     if quiz.status != 'completed':
-        fail('RESULT_NOT_READY', '학습을 종료한 뒤 결과를 확인할 수 있습니다.')
+        fail('RESULT_NOT_READY', '풀이를 종료한 뒤 결과를 확인할 수 있습니다.')
     rows, attempts = quiz_rows(db, quiz)
+    correct_options = dict(db.exec(select(QuestionOption.question_id, QuestionOption.id)
+                                  .where(QuestionOption.question_id.in_([q.id for _, q, _ in rows]), QuestionOption.is_correct.is_(True))).all())
     items, correct, graded = [], 0, 0
     for item, question, chapter in rows:
         done = [a for a in attempts[item.id] if a.graded_at is not None]
@@ -334,10 +336,27 @@ def result_response(db, quiz):
             graded += 1
             correct += int(attempt.is_correct)
             outcome = {'attempt_id': attempt.id, 'selected_option_id': attempt.selected_option_id,
-                       'correct_option_id': correct_option(db, question.id).id, 'is_correct': attempt.is_correct, 'graded_at': attempt.graded_at}
+                       'correct_option_id': correct_options[question.id], 'is_correct': attempt.is_correct, 'graded_at': attempt.graded_at}
         items.append({'item_id': item.id, 'position': item.position, 'question_key': question.question_key,
                       'subject_id': chapter.subject_id, 'outcome': outcome})
     accuracy = float((Decimal(correct * 100) / graded).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)) if graded else 0.0
-    return {'server_now': utc_now(), 'result': {'mode': 'study', 'session': session_data(quiz, rows, attempts), 'items': items,
-            'summary': {'item_count': len(rows), 'graded_item_count': graded, 'correct_item_count': correct,
-                        'incorrect_item_count': graded - correct, 'ungraded_item_count': len(rows) - graded, 'accuracy_percent': accuracy}}}
+    summary = {'item_count': len(rows), 'graded_item_count': graded, 'correct_item_count': correct,
+               'incorrect_item_count': graded - correct, 'ungraded_item_count': len(rows) - graded, 'accuracy_percent': accuracy}
+    if quiz.mode == 'mock':
+        summary = mock_summary(items)
+    return {'server_now': utc_now(), 'result': {'mode': quiz.mode, 'session': session_data(quiz, rows, attempts), 'items': items, 'summary': summary}}
+
+
+def mock_summary(items):
+    correct = sum(bool(i['outcome']['is_correct']) for i in items)
+    answered = sum(i['outcome']['selected_option_id'] is not None for i in items)
+    subjects = []
+    for subject_id, count, minimum in [(1, 10, 8), (2, 40, 32)]:
+        subject_correct = sum(bool(i['outcome']['is_correct']) for i in items if i['subject_id'] == subject_id)
+        score = subject_correct * 2
+        subjects.append({'subject_id': subject_id, 'item_count': count, 'correct_item_count': subject_correct,
+                         'score': score, 'max_score': count * 2, 'minimum_score': minimum, 'failed': score < minimum})
+    return {'item_count': len(items), 'answered_item_count': answered, 'unanswered_item_count': len(items) - answered,
+            'correct_item_count': correct, 'incorrect_item_count': len(items) - correct, 'score': correct * 2,
+            'max_score': 100, 'accuracy_percent': correct * 2.0, 'subjects': subjects,
+            'passed': correct * 2 >= 60 and not any(s['failed'] for s in subjects)}

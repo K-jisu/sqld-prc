@@ -14,7 +14,7 @@ const timers = new Map<string, ReturnType<typeof setTimeout>>();
 const progressKey = (id: string) => ['study-progress', id] as const;
 const storageKey = (id: string) => `sqld-study-progress:${id}`;
 
-export function useStudyProgress(sessionId: string) {
+export function useStudyProgress(sessionId: string, mode: 'study' | 'mock' = 'study') {
   const client = useQueryClient();
   const [storageError, setStorageError] = useState<unknown>(null);
   const saving = useIsMutating({ mutationKey: ['study-sync', sessionId] }) > 0;
@@ -22,7 +22,7 @@ export function useStudyProgress(sessionId: string) {
     select: m => ({ status: m.state.status, error: m.state.error }) });
   const sync = useMutation({
     mutationKey: ['study-sync', sessionId], scope: { id: `study-sync:${sessionId}` }, gcTime: Infinity,
-    mutationFn: (entries: Entry[]) => api<{ server_now: string; saved_attempt_ids: string[] }>(`/study-sessions/${sessionId}/progress`, {
+    mutationFn: (entries: Entry[]) => api<{ server_now: string; saved_attempt_ids: string[] }>(`/${mode === 'mock' ? 'mock' : 'study'}-sessions/${sessionId}/progress`, {
       method: 'POST', body: { answers: entries.map(e => ({ item_id: e.item_id, attempt_id: e.attempt_id,
         attempt_number: e.attempt_number, selected_option_id: e.selected_option_id, graded: e.graded })) },
     }),
@@ -31,6 +31,7 @@ export function useStudyProgress(sessionId: string) {
       for (const entry of entries) if (remaining[entry.attempt_id]?.change_id === entry.change_id) delete remaining[entry.attempt_id];
       persist(remaining);
       if (!Object.keys(remaining).length) setStorageError(null);
+      void client.invalidateQueries({ queryKey: ['records'] });
     },
   });
 
@@ -93,6 +94,7 @@ export function useStudyProgress(sessionId: string) {
       return item;
     });
     client.setQueryData<SessionResponse>(keys.session(sessionId), previous => previous && overlaySession(previous));
+    if (mode === 'mock' && response.session_status !== 'active') persist({});
     if (response.session_status === 'active' && entries.length) schedule();
     return { ...response, items };
   }
@@ -114,6 +116,7 @@ export function useStudyProgress(sessionId: string) {
   }
 
   function grade(itemId: string) {
+    if (mode !== 'study') return;
     const data = client.getQueryData<ItemResponse>(keys.item(sessionId, itemId));
     if (!data || data.session_status !== 'active' || data.item.attempt.status !== 'draft'
       || !data.item.attempt.selected_option_id || !data.item.solution) return;
@@ -122,6 +125,7 @@ export function useStudyProgress(sessionId: string) {
   }
 
   function retry(itemId: string) {
+    if (mode !== 'study') return;
     const data = client.getQueryData<ItemResponse>(keys.item(sessionId, itemId));
     if (!data || data.session_status !== 'active' || data.item.attempt.status !== 'graded') return;
     change({ ...data.item, attempt: { id: crypto.randomUUID(), attempt_number: data.item.attempt.attempt_number + 1,
@@ -129,6 +133,7 @@ export function useStudyProgress(sessionId: string) {
   }
 
   function gradeAll() {
+    if (mode !== 'study') return;
     const data = client.getQueryData<SessionResponse>(keys.session(sessionId));
     if (data?.session.status === 'active') for (const item of data.items) grade(item.item_id);
   }
@@ -143,7 +148,7 @@ export function useStudyProgress(sessionId: string) {
     }
   }
 
-  return { hydrate, overlaySession, select, grade, retry, gradeAll, flush, saving,
+  return { hydrate, overlaySession, select, grade, retry, gradeAll, flush, saving, discard: () => persist({}),
     unsaved: Object.keys(client.getQueryData<Pending>(progressKey(sessionId)) ?? {}).length > 0,
     error: storageError ?? (writes.at(-1)?.status === 'error' ? writes.at(-1)?.error : null) };
 }

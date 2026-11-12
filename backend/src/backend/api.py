@@ -6,11 +6,12 @@ from fastapi import APIRouter, Depends, Path as PathParam, Request, Response
 from fastapi.responses import FileResponse
 from sqlmodel import Session, select
 
-from backend import study
-from backend.api_errors import fail
+from backend import mock, records, study
+from backend.api_errors import APIError, fail
 from backend.api_schemas import (ActiveSessionsResponse, CatalogResponse, EmptyRequest, ErrorResponse, GradeRequest,
                                  GradeResponse, ItemResponse, ItemsResponse, PositionRequest, ResultResponse, RetryRequest,
-                                 RetryResponse, SaveAnswerRequest, SessionResponse, StudyCreate, ProgressRequest, ProgressResponse)
+                                 RetryResponse, SaveAnswerRequest, SessionResponse, StudyCreate, ProgressRequest, ProgressResponse,
+                                 MockCreate, StatsResponse, WrongAnswersResponse, MockHistoryResponse)
 from backend.models import Question, QuestionOption, QuizSession, utc_now
 
 
@@ -19,11 +20,24 @@ def get_session(request: Request):
     if engine is None:
         fail('SERVICE_UNAVAILABLE', 'DB 연결 설정을 확인해 주세요.', 503)
     with Session(engine) as db, db.begin():
-        yield db
+        try:
+            yield db
+        except APIError:
+            if db.info.get('mock_expired'):
+                db.commit()
+            raise
 
 
 DB = Annotated[Session, Depends(get_session, scope='function')]
 router = APIRouter(prefix='/api/v1', responses={code: {'model': ErrorResponse} for code in (403, 404, 409, 422, 500, 503)})
+
+
+def load_quiz(db, session_id, mode=None):
+    quiz = study.get_quiz(db, session_id)
+    mock.expire(db, quiz)
+    if mode and quiz.mode != mode:
+        fail('MODE_MISMATCH', '이 풀이 방식에서는 사용할 수 없는 작업입니다.')
+    return quiz
 
 
 @router.get('/catalog', response_model=CatalogResponse)
@@ -34,26 +48,31 @@ def get_catalog(db: DB):
 @router.put('/study-sessions/{session_id}', response_model=SessionResponse, status_code=201,
             responses={200: {'model': SessionResponse, 'description': '같은 생성 조건의 재전송'}})
 def create_study(session_id: UUID, body: StudyCreate, db: DB, response: Response):
+    if body.scope == 'wrong_answers':
+        mock.expire_active(db)
     quiz, created = study.create_study(db, session_id, body)
     response.status_code = 201 if created else 200
     return study.session_response(db, quiz)
 
 
 @router.get('/quiz-sessions', response_model=ActiveSessionsResponse)
-def active_sessions(db: DB, mode: Literal['study'] | None = None):
-    quizzes = db.exec(select(QuizSession).where(QuizSession.mode == 'study', QuizSession.status == 'active')
-                      .order_by(QuizSession.started_at.desc(), QuizSession.id.desc())).all()
+def active_sessions(db: DB, mode: Literal['study', 'mock'] | None = None):
+    mock.expire_active(db)
+    statement = select(QuizSession).where(QuizSession.status == 'active').order_by(QuizSession.started_at.desc(), QuizSession.id.desc())
+    if mode:
+        statement = statement.where(QuizSession.mode == mode)
+    quizzes = db.exec(statement).all()
     return {'server_now': utc_now(), 'sessions': [study.session_response(db, quiz)['session'] for quiz in quizzes]}
 
 
 @router.get('/quiz-sessions/{session_id}', response_model=SessionResponse)
 def get_study(session_id: UUID, db: DB):
-    return study.session_response(db, study.get_quiz(db, session_id))
+    return study.session_response(db, load_quiz(db, session_id))
 
 
 @router.patch('/quiz-sessions/{session_id}', response_model=SessionResponse)
 def set_position(session_id: UUID, body: PositionRequest, db: DB):
-    quiz = study.get_quiz(db, session_id)
+    quiz = load_quiz(db, session_id)
     study.require_active(quiz)
     count = len(study.quiz_rows(db, quiz)[0])
     if body.current_position > count:
@@ -66,31 +85,31 @@ def set_position(session_id: UUID, body: PositionRequest, db: DB):
 
 @router.get('/quiz-sessions/{session_id}/items/{item_id}', response_model=ItemResponse)
 def get_item(session_id: UUID, item_id: UUID, db: DB):
-    quiz = study.get_quiz(db, session_id)
+    quiz = load_quiz(db, session_id)
     return study.item_response(db, quiz, study.get_item(db, quiz, item_id))
 
 
 @router.get('/quiz-sessions/{session_id}/items', response_model=ItemsResponse)
 def get_items(session_id: UUID, db: DB):
-    return study.items_response(db, study.get_quiz(db, session_id))
+    return study.items_response(db, load_quiz(db, session_id))
 
 
 @router.patch('/quiz-sessions/{session_id}/items/{item_id}/answer', response_model=ItemResponse)
 def save_answer(session_id: UUID, item_id: UUID, body: SaveAnswerRequest, db: DB):
-    quiz = study.get_quiz(db, session_id)
+    quiz = load_quiz(db, session_id)
     return study.save_answer(db, quiz, study.get_item(db, quiz, item_id), body)
 
 
 @router.post('/quiz-sessions/{session_id}/items/{item_id}/grade', response_model=GradeResponse)
 def grade(session_id: UUID, item_id: UUID, body: GradeRequest, db: DB):
-    quiz = study.get_quiz(db, session_id)
+    quiz = load_quiz(db, session_id, 'study')
     return study.grade(db, quiz, study.get_item(db, quiz, item_id), body)
 
 
 @router.post('/quiz-sessions/{session_id}/items/{item_id}/retry', response_model=RetryResponse, status_code=201,
              responses={200: {'model': RetryResponse, 'description': '이미 생성된 다음 시도 반환'}})
 def retry(session_id: UUID, item_id: UUID, body: RetryRequest, db: DB, response: Response):
-    quiz = study.get_quiz(db, session_id)
+    quiz = load_quiz(db, session_id, 'study')
     payload, created = study.retry(db, quiz, study.get_item(db, quiz, item_id), body)
     response.status_code = 201 if created else 200
     return payload
@@ -98,7 +117,7 @@ def retry(session_id: UUID, item_id: UUID, body: RetryRequest, db: DB, response:
 
 @router.post('/study-sessions/{session_id}/finish', response_model=ResultResponse)
 def finish(session_id: UUID, body: EmptyRequest, db: DB):
-    quiz = study.get_quiz(db, session_id)
+    quiz = load_quiz(db, session_id, 'study')
     if quiz.status == 'active':
         quiz.status, quiz.finished_at, quiz.finish_reason = 'completed', utc_now(), 'manual'
         db.add(quiz)
@@ -108,12 +127,53 @@ def finish(session_id: UUID, body: EmptyRequest, db: DB):
 
 @router.post('/study-sessions/{session_id}/progress', response_model=ProgressResponse)
 def sync_progress(session_id: UUID, body: ProgressRequest, db: DB):
-    return study.sync_progress(db, study.get_quiz(db, session_id), body)
+    return study.sync_progress(db, load_quiz(db, session_id, 'study'), body)
 
 
 @router.get('/quiz-sessions/{session_id}/result', response_model=ResultResponse)
 def result(session_id: UUID, db: DB):
-    return study.result_response(db, study.get_quiz(db, session_id))
+    return study.result_response(db, load_quiz(db, session_id))
+
+
+@router.put('/mock-sessions/{session_id}', response_model=SessionResponse, status_code=201,
+            responses={200: {'model': SessionResponse, 'description': '같은 생성 조건의 재전송'}})
+def create_mock(session_id: UUID, body: MockCreate, db: DB, response: Response):
+    quiz, created = mock.create_mock(db, session_id, body)
+    response.status_code = 201 if created else 200
+    return study.session_response(db, quiz)
+
+
+@router.post('/mock-sessions/{session_id}/progress', response_model=ProgressResponse)
+def sync_mock(session_id: UUID, body: ProgressRequest, db: DB):
+    return mock.sync_progress(db, load_quiz(db, session_id, 'mock'), body)
+
+
+@router.post('/mock-sessions/{session_id}/submit', response_model=ResultResponse)
+def submit_mock(session_id: UUID, body: EmptyRequest, db: DB):
+    return mock.submit(db, load_quiz(db, session_id, 'mock'))
+
+
+@router.post('/mock-sessions/{session_id}/abandon', response_model=SessionResponse)
+def abandon_mock(session_id: UUID, body: EmptyRequest, db: DB):
+    return mock.abandon(db, load_quiz(db, session_id, 'mock'))
+
+
+@router.get('/me/stats', response_model=StatsResponse)
+def get_stats(db: DB):
+    mock.expire_active(db)
+    return records.stats(db)
+
+
+@router.get('/me/wrong-answers', response_model=WrongAnswersResponse)
+def get_wrong_answers(db: DB, subject_id: int | None = None, chapter_id: int | None = None):
+    mock.expire_active(db)
+    return records.wrong_answers(db, subject_id, chapter_id)
+
+
+@router.get('/me/mock-sessions', response_model=MockHistoryResponse)
+def get_mock_history(db: DB, status: Literal['completed', 'abandoned'] | None = None):
+    mock.expire_active(db)
+    return records.mock_history(db, status)
 
 
 @router.get('/question-assets/{question_key}/{file_name}', response_class=FileResponse)
