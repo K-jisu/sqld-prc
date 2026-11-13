@@ -1,4 +1,7 @@
+import base64
+import gzip
 from pathlib import Path
+import re
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -90,8 +93,37 @@ def get_item(session_id: UUID, item_id: UUID, db: DB):
 
 
 @router.get('/quiz-sessions/{session_id}/items', response_model=ItemsResponse)
-def get_items(session_id: UUID, db: DB):
-    return study.items_response(db, load_quiz(db, session_id))
+def get_items(session_id: UUID, request: Request, db: DB):
+    payload = study.items_response(db, load_quiz(db, session_id))
+    root = Path(request.app.state.assets_root).resolve()
+    assets = {}
+    types = {'svg': 'image/svg+xml', 'png': 'image/png', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'webp': 'image/webp'}
+
+    def include(value):
+        if isinstance(value, dict):
+            if value.get('type') == 'image':
+                src = value.get('src', '')
+                if src in assets:
+                    return
+                match = re.fullmatch(r'/api/v1/question-assets/(S[12]-Q[0-9]{3})/([A-Za-z0-9_-][A-Za-z0-9_.-]*\.(svg|png|jpg|jpeg|webp))', src)
+                if not match:
+                    fail('RESOURCE_NOT_FOUND', '문항 그림 경로를 확인할 수 없습니다.', 404)
+                path = (root / match[1] / match[2]).resolve()
+                if not path.is_relative_to(root) or not path.is_file():
+                    fail('RESOURCE_NOT_FOUND', '문항 그림을 찾을 수 없습니다.', 404)
+                assets[src] = f'data:{types[match[3]]};base64,' + base64.b64encode(path.read_bytes()).decode('ascii')
+            else:
+                for child in value.values():
+                    include(child)
+        elif isinstance(value, list):
+            for child in value:
+                include(child)
+
+    include(payload['items'])
+    payload['assets'] = assets
+    body = ItemsResponse.model_validate(payload).model_dump_json().encode('utf-8')
+    return Response(content=gzip.compress(body, compresslevel=5), media_type='application/json',
+                    headers={'Content-Encoding': 'gzip', 'Cache-Control': 'private, no-store'})
 
 
 @router.patch('/quiz-sessions/{session_id}/items/{item_id}/answer', response_model=ItemResponse)

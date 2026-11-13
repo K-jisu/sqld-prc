@@ -4,6 +4,7 @@ import { useIsMutating, useMutation, useMutationState, useQueryClient } from '@t
 import { useState } from 'react';
 import { api, ApiError, keys } from './api';
 import type { ItemResponse, ItemsResponse, SessionResponse } from './types';
+import { cacheQuestionImages } from './question-images';
 
 type Entry = {
   item_id: string; attempt_id: string; attempt_number: number; selected_option_id: string | null;
@@ -77,6 +78,8 @@ export function useStudyProgress(sessionId: string, mode: 'study' | 'mock' = 'st
   }
 
   function hydrate(response: ItemsResponse): ItemsResponse {
+    cacheQuestionImages(response.assets ?? {});
+    client.setQueryDefaults(['item', sessionId], { staleTime: Infinity, gcTime: Infinity });
     const entries = Object.values(pending());
     const items = response.items.map(original => {
       let item = original;
@@ -105,6 +108,9 @@ export function useStudyProgress(sessionId: string, mode: 'study' | 'mock' = 'st
       graded_at: item.attempt.graded_at, change_id: crypto.randomUUID() };
     persist({ ...pending(), [entry.attempt_id]: entry });
     client.setQueryData<ItemResponse>(keys.item(sessionId, item.id), previous => previous && { ...previous, item });
+    client.setQueryData<ItemsResponse>(keys.items(sessionId), previous => previous && {
+      ...previous, items: previous.items.map(row => row.id === item.id ? item : row),
+    });
     client.setQueryData<SessionResponse>(keys.session(sessionId), previous => previous && overlaySession(previous));
     schedule();
   }

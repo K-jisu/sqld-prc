@@ -220,6 +220,7 @@ class ItemsResponse(Model):
     session_id: UUID
     session_status: Literal['active', 'completed', 'abandoned']
     items: list[ItemOut]
+    assets: dict[str, str] = Field(default_factory=dict)
 
 
 class RetryResponse(Model):

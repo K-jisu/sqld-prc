@@ -109,22 +109,26 @@ export function StudyScreen({ sessionId, reviewItemId, mode = 'study' }: { sessi
   const router = useRouter();
   const navigationVersion = useRef(0);
   const progress = useStudyProgress(sessionId, mode);
-  const session = useQuery({ queryKey: keys.session(sessionId), queryFn: async ({ signal }) => ({ ...progress.overlaySession(await api<SessionResponse>(`/quiz-sessions/${sessionId}`, { signal })), client_received_at: Date.now() }) });
+  const session = useQuery({ queryKey: keys.session(sessionId), staleTime: Infinity, gcTime: Infinity,
+    refetchOnWindowFocus: mode === 'mock' ? 'always' : false, refetchOnReconnect: mode === 'mock' ? 'always' : false,
+    queryFn: async ({ signal }) => ({ ...progress.overlaySession(await api<SessionResponse>(`/quiz-sessions/${sessionId}`, { signal })), client_received_at: Date.now() }) });
   useEffect(() => {
     if (!session.data) return;
     if (session.data.session.mode !== mode) router.replace(`/${session.data.session.mode === 'mock' ? 'mock' : 'study'}/${sessionId}`);
     else if (mode === 'mock' && session.data.session.status === 'completed' && !reviewItemId) router.replace(`/mock/${sessionId}/result`);
   }, [mode, session.data, sessionId, reviewItemId, router]);
-  const bank = useQuery({ queryKey: keys.items(sessionId), staleTime: Infinity, refetchOnWindowFocus: 'always', refetchOnReconnect: 'always',
+  const bank = useQuery({ queryKey: keys.items(sessionId), staleTime: Infinity, gcTime: Infinity,
+    refetchOnWindowFocus: mode === 'mock' ? 'always' : false, refetchOnReconnect: mode === 'mock' ? 'always' : false,
     queryFn: async () => {
       const response = await api<ItemsResponse>(`/quiz-sessions/${sessionId}/items`);
       return progress.hydrate(response);
     } });
   const currentItem = session.data?.session.status === 'completed' && reviewItemId
     ? session.data.items.find((i) => i.item_id === reviewItemId) : session.data?.items.find((i) => i.position === session.data.session.current_position);
-  const item = useQuery({ queryKey: keys.item(sessionId, currentItem?.item_id ?? ''), enabled: false,
-    staleTime: Infinity,
-    queryFn: ({ signal }) => api<ItemResponse>(`/quiz-sessions/${sessionId}/items/${currentItem!.item_id}`, { signal }) });
+  const entry = bank.data?.items.find(row => row.id === currentItem?.item_id);
+  const item: ItemResponse | undefined = entry && bank.data ? {
+    server_now: bank.data.server_now, session_id: sessionId, session_status: bank.data.session_status, item: entry,
+  } : undefined;
   const position = useMutation({ scope: { id: `position:${sessionId}` },
     mutationFn: (value: { position: number; version: number }) => api<SessionResponse>(`/quiz-sessions/${sessionId}`, { method: 'PATCH', body: { current_position: value.position } }),
     onSuccess: (data, value) => {
@@ -147,8 +151,8 @@ export function StudyScreen({ sessionId, reviewItemId, mode = 'study' }: { sessi
     return !checked.isError && !loaded.isError;
   }
   if (session.data?.session.status === 'abandoned') return <><AppHeader/><main id="main" className="loading-main"><h1>포기한 모의고사입니다</h1><p>점수와 해설은 공개하지 않습니다.</p><Link className="button secondary" href="/">학습 목록으로</Link></main></>;
-  if (!session.data || !item.data) return <><AppHeader/><main id="main" className="loading-main">{session.error || item.error || bank.error ? <ErrorNotice error={session.error ?? item.error ?? bank.error} onRetry={() => { void bank.refetch(); void refresh(); }}/>
+  if (!session.data || !item) return <><AppHeader/><main id="main" className="loading-main">{session.error || bank.error ? <ErrorNotice error={session.error ?? bank.error} onRetry={() => { void refresh(); }}/>
     : session.data && !currentItem ? <div className="empty-panel"><h1>문항을 찾을 수 없습니다</h1><Link className="button secondary" href={`/study/${sessionId}`}>학습으로 돌아가기</Link></div> : <LoadingPanel/>}</main></>;
-  return <><QuestionWorkspace key={`${item.data.item.id}:${item.data.item.attempt.id}`} data={item.data} sessionData={session.data} onNavigate={navigate} progress={progress} refresh={refresh}/>
-    {(position.error || session.error || item.error || bank.error) && <div className="floating-error"><ErrorNotice error={position.error ?? session.error ?? item.error ?? bank.error} onRetry={() => { position.reset(); void refresh(); }}/></div>}</>;
+  return <><QuestionWorkspace key={`${item.item.id}:${item.item.attempt.id}`} data={item} sessionData={session.data} onNavigate={navigate} progress={progress} refresh={refresh}/>
+    {(position.error || session.error || bank.error) && <div className="floating-error"><ErrorNotice error={position.error ?? session.error ?? bank.error} onRetry={() => { position.reset(); void refresh(); }}/></div>}</>;
 }
