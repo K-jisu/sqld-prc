@@ -49,6 +49,6 @@
 
 ## 배포·확인 상태
 
-운영은 https://sqld-prc-study.vercel.app 이다. 브라우저는 동일 출처 `/api/v1`을 사용하고 별도 공개 백엔드는 두지 않는다. `scripts/prepare_vercel.py`가 코드와 참조 그림만 비공개 폴더로 모은다. 교재·문항 JSON·이미지·접속정보·백업은 Git에 넣지 않는다.
+운영은 https://sqld-prc-study.vercel.app 이다. 브라우저는 동일 출처 `/api/v1`을 사용하고 별도 공개 백엔드는 두지 않는다. `scripts/prepare_vercel.py`가 코드·참조 그림·지정한 학습 PDF 두 개를 비공개 폴더로 모은다. PDF는 보호된 API의 FileResponse로 제공한다. 교재·학습 PDF·문항 JSON·이미지·접속정보·백업은 Git에 넣지 않는다.
 
 주요 기능은 구현·배포됐으며 최신 배포 빌드만 통과했다. 사용자 요청에 따라 별도 테스트·lint·브라우저/API/DB 확인은 실행하지 않았다. pytest·Playwright는 남아 있으나 일부 테스트는 이전 정책 기준이다. 과거 실행 결과는 날짜별 보고서에만 적용한다.

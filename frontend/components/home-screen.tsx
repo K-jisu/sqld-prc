@@ -85,7 +85,7 @@ function ActivePanel() {
 
 export function HomeScreen() {
   const catalog = useQuery({ queryKey: keys.catalog, queryFn: ({ signal }) => api<Catalog>('/catalog', { signal }) });
-  return <><AppHeader><nav className="study-toolbar"><Link className="header-link" href="/records">내 기록<Arrow/></Link><a className="header-link" href="#ongoing">이어풀기<Arrow/></a></nav></AppHeader><main id="main" className="home-main">
+  return <><AppHeader><nav className="study-toolbar" aria-label="학습 메뉴"><Link className="header-link" href="/materials">학습 자료</Link><Link className="header-link" href="/records">내 기록<Arrow/></Link><a className="header-link" href="#ongoing">이어풀기<Arrow/></a></nav></AppHeader><main id="main" className="home-main">
     <div className="page-heading"><h1>학습하기</h1><p>범위를 정하고, 한 문항씩 차분하게 풀어보세요.</p></div>
     <div className="home-grid"><div>{catalog.isPending ? <LoadingPanel label="문제은행을 불러오는 중"/>
       : catalog.isError ? <ErrorNotice error={catalog.error} onRetry={() => void catalog.refetch()}/>

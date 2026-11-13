@@ -5,7 +5,7 @@
 ## 현재 상태
 
 - 운영: https://sqld-prc-study.vercel.app
-- 작업 브랜치: `codex/finish-study-app`. 주요 기능 코드 기준은 `2611ef1`이고 이후 문서 정리도 이 브랜치에 저장한다.
+- 작업 브랜치: `codex/finish-study-app`. 학습 재로딩 수정·문서 정리·학습 자료 PDF 연결까지 이 브랜치에 저장한다.
 - 학습·모의고사·통계·오답 복습·시험 이력은 구현·배포됐다. 별도 동작 검증 완료를 뜻하지 않는다.
 - 167문항(1과목50·2과목117), 668보기, 모두 검수 대기다. 누락 II-61~64·69~70·79~81만 제외했다.
 - `main` 병합은 별도 남은 정리다. 오래된 `main`이나 모의고사 단독 브랜치로 최신 학습 코드를 덮어쓰지 않는다.
@@ -27,6 +27,7 @@ git switch codex/finish-study-app
 - `frontend/lib/question-images.ts`: 첫 응답에 포함된 그림을 메모리에 보관한다.
 - `frontend/components/mock-clock.tsx`: 서버 기준90분 타이머·만료. 시험의 포커스/재연결 마감 확인은 유지한다.
 - `frontend/components/records-screen.tsx`: 최신 문항 통계·필터별 오답 학습·시험 이력.
+- `frontend/app/materials/page.tsx`: 교정·보충 PDF 목록·열기·내려받기. `api.py`의 자료 전용 경로는 DB를 사용하지 않는다.
 - `backend/src/backend/study.py`: 학습·일괄 응답·기록 저장·결과.
 - `backend/src/backend/mock.py`: 10:40 추출·진행 시험 하나·고정 마감·제출/만료·포기.
 - `backend/src/backend/records.py`: 최신 확정 답안 집계·시험 이력.
@@ -51,6 +52,8 @@ git switch codex/finish-study-app
 
 교재·ZIP·변환 JSON·이미지·실제 `.env`와 회사 PC의 임시 배포 스크립트는 Git에 없다. 로컬 실행/재배포에는 별도 보관 자료가 필요하다. 공개 Git/채팅에 접속정보를 넣거나 운영 문항을 다시 입력하지 않는다.
 
+학습 PDF도 Git 제외다. `data/private/study-materials/`의 `data-modeling.pdf`(11쪽), `sql.pdf`(24쪽)를 별도 전달해야 한다. 원본 산출물은 `output/pdf/`의 교정본이며 교재 원본 PDF를 대신 배포하지 않는다. 로컬 기본 자료 경로는 위 폴더, 배포에서는 `STUDY_MATERIALS_DIR`을 함수 내부 `study-materials`로 지정한다.
+
 배포는 [배포 보고서](2026-11-11-private-deployment-report.md)·`scripts/prepare_vercel.py`를 참고하며 Vercel All Deployments를 유지한다.
 
 ## 주요 이력
@@ -62,3 +65,4 @@ git switch codex/finish-study-app
 | 2026-11-12 | 모의고사·통계·오답 복습·시험 이력 통합·배포 |
 | 2026-11-13 | 학습 중 재조회·문항 캐시 유실·그림 개별 요청 제거 |
 | 2026-11-13 | 현재 문서 통일·OpenAPI 갱신. 기능 코드·운영 배포 변경 없음 |
+| 2026-11-13 | 교정·보충 PDF 두 개를 학습 자료 메뉴·보호된 API·비공개 배포 패키지에 연결·운영 배포 READY. [결과](2026-11-13-study-materials-report.md) |

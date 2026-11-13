@@ -3,7 +3,7 @@
   "framework": "nextjs",
   "functions": {
     "api/index.py": {
-      "includeFiles": "{server,question-assets}/**",
+      "includeFiles": "{server,question-assets,study-materials}/**",
       "excludeFiles": "{node_modules,.next,tests}/**",
       "maxDuration": 30
     }

@@ -48,6 +48,23 @@ def get_catalog(db: DB):
     return study.catalog(db)
 
 
+@router.get('/study-materials/{material_id}', response_class=FileResponse,
+            responses={200: {'content': {'application/pdf': {}}}})
+def study_material(material_id: str, request: Request, download: bool = False):
+    materials = {'data-modeling': ('data-modeling.pdf', 'SQLD_데이터모델링_교정본.pdf'),
+                 'sql': ('sql.pdf', 'SQLD_SQL_교정본.pdf')}
+    material = materials.get(material_id)
+    if material is None:
+        fail('RESOURCE_NOT_FOUND', '학습 자료를 찾을 수 없습니다.', 404)
+    root = Path(request.app.state.materials_root).resolve()
+    target = (root / material[0]).resolve()
+    if not target.is_relative_to(root) or not target.is_file():
+        fail('RESOURCE_NOT_FOUND', '학습 자료 파일을 찾을 수 없습니다.', 404)
+    return FileResponse(target, media_type='application/pdf', filename=material[1],
+                        content_disposition_type='attachment' if download else 'inline',
+                        headers={'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff'})
+
+
 @router.put('/study-sessions/{session_id}', response_model=SessionResponse, status_code=201,
             responses={200: {'model': SessionResponse, 'description': '같은 생성 조건의 재전송'}})
 def create_study(session_id: UUID, body: StudyCreate, db: DB, response: Response):

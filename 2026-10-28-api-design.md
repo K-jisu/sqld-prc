@@ -18,6 +18,7 @@
 | Method | 경로 | 역할 |
 |---|---|---|
 | GET | /catalog | 과목·단원·검수 상태별 문항 수 |
+| GET | /study-materials/{material_id} | 지정한 학습 PDF 열기, download=true면 첨부 다운로드 |
 | PUT | /study-sessions/{session_id} | 학습 생성, 최초201·동일 재전송200 |
 | GET | /quiz-sessions | 진행 목록, 선택적 mode=study/mock |
 | GET | /quiz-sessions/{session_id} | 세션·고정 목록·응답 현황 |
@@ -40,6 +41,8 @@
 | GET | /question-assets/{question_key}/{file_name} | 참조 그림의 호환 제공 경로 |
 
 ## 학습 생성·조회
+
+학습 자료의 material_id는 data-modeling·sql만 허용한다. 응답은 application/pdf이며 기본 Content-Disposition은 inline, download=true는 attachment다. 파일은 비공개 자료 폴더에서 제공하고 private, no-store를 적용한다. 자료 조회에는 DB가 필요하지 않으며 Vercel의 기존 접근 보호를 유지한다. 다른 ID나 없는 파일은404다.
 
 scope는 all, subjects(subject_ids), chapters(chapter_ids), previous_session(previous_session_id), wrong_answers(선택적 subject_ids·chapter_ids)다. 이전 풀이 목록은 완료 상태만 허용한다.
 

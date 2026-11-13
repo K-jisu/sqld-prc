@@ -16,7 +16,7 @@ def packager():
 
 @pytest.fixture
 def source(tmp_path):
-    for folder in ('frontend/app', 'backend/src/backend', 'deployment/api', 'data/private/phase2/assets/S1-Q001'):
+    for folder in ('frontend/app', 'backend/src/backend', 'deployment/api', 'data/private/phase2/assets/S1-Q001', 'data/private/study-materials'):
         (tmp_path / folder).mkdir(parents=True)
     for name, content in {
         'frontend/package.json': '{}', 'frontend/app/page.tsx': 'export default function Home() {}',
@@ -26,6 +26,8 @@ def source(tmp_path):
         'deployment/.vercelignore': '.env*', 'deployment/.python-version': '3.14',
         'data/private/phase2/assets/S1-Q001/table.svg': '<svg/>',
         'data/private/phase2/assets/S1-Q001/unused.svg': '<svg/>',
+        'data/private/study-materials/data-modeling.pdf': '%PDF-fixture-model',
+        'data/private/study-materials/sql.pdf': '%PDF-fixture-sql',
         'data/private/phase2/samples.json': json.dumps([{'content_blocks': [
             {'type': 'image', 'src': '/api/v1/question-assets/S1-Q001/table.svg'}]}]),
     }.items():
@@ -33,14 +35,16 @@ def source(tmp_path):
     return tmp_path
 
 
-def test_package_contains_only_runtime_source_and_referenced_images(source):
+def test_package_contains_only_runtime_source_referenced_images_and_study_pdfs(source):
     output = source / 'data/private/vercel/test-project'
     packager().prepare(source, output, 'fastapi==0.162.0\n')
     assert (output / 'app/page.tsx').is_file()
     assert (output / 'server/backend/main.py').is_file()
     assert (output / 'question-assets/S1-Q001/table.svg').is_file()
     assert not (output / 'question-assets/S1-Q001/unused.svg').exists()
-    assert not any('.env' in p.name or p.suffix == '.pdf' for p in output.rglob('*'))
+    assert not any('.env' in p.name for p in output.rglob('*'))
+    assert sorted(p.relative_to(output).as_posix() for p in output.rglob('*.pdf')) == [
+        'study-materials/data-modeling.pdf', 'study-materials/sql.pdf']
     assert not (output / 'data').exists()
 
 

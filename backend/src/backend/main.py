@@ -43,6 +43,7 @@ def create_app():
     application.state.engine = None
     application.state.app_origin = os.environ.get('APP_ORIGIN', 'http://localhost:3000')
     application.state.assets_root = Path(os.environ.get('QUESTION_ASSETS_DIR') or Path(__file__).resolve().parents[3] / 'data/private/phase2/assets')
+    application.state.materials_root = Path(os.environ.get('STUDY_MATERIALS_DIR') or Path(__file__).resolve().parents[3] / 'data/private/study-materials')
 
     @application.middleware('http')
     async def request_policy(request: Request, call_next):

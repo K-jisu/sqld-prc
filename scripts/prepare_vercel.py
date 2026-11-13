@@ -1,4 +1,4 @@
-"""Git 제외 폴더에 필요한 코드와 참조 이미지만 모아 비공개 배포를 준비한다."""
+"""필요한 코드·참조 이미지·지정한 학습 PDF를 Git 제외 폴더에 모은다."""
 
 import json
 from pathlib import Path
@@ -65,6 +65,13 @@ def prepare(root: Path, output: Path, requirements: str):
         destination = output / 'question-assets' / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(assets / relative, destination)
+    materials = root / 'data/private/study-materials'
+    (output / 'study-materials').mkdir()
+    for name in ('data-modeling.pdf', 'sql.pdf'):
+        source = (materials / name).resolve()
+        if not source.is_relative_to(materials.resolve()) or not source.is_file():
+            raise ValueError('배포할 학습 PDF가 없거나 경로를 벗어났습니다.')
+        shutil.copy2(source, output / 'study-materials' / name)
     (output / 'requirements.txt').write_text(requirements, encoding='utf-8')
     return output
 

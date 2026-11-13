@@ -20,6 +20,7 @@ uv run --env-file .env --locked fastapi dev src/backend/main.py
 정확한 경로·필드는 [API 명세](../2026-10-28-api-design.md)와 [OpenAPI](../2026-10-28-openapi.json)를 따른다.
 
 - `GET /catalog`: 과목·단원·문항 수.
+- `GET /study-materials/{data-modeling|sql}`: DB 없이 교정·보충 PDF 제공. 기본 inline, `?download=true`는 attachment.
 - `/study-sessions`, `/quiz-sessions`: 학습 생성·진행·위치·결과.
 - `GET /quiz-sessions/{id}/items`: 전체 문항과 허용된 정답/해설, 그림 assets를 포함한 gzip JSON.
 - `POST /study-sessions/{id}/progress`: 학습 기록 묶음 저장. 화면 판정은 응답을 기다리지 않는다.
@@ -48,7 +49,9 @@ uv run --env-file .env --locked python -m backend.import_questions
 
 모두 검수 대기이며 include_drafts=true로 포함할 수 있다. 자동 게시하지 않는다. 제외한9개와 입력 근거는 [전체 등록 보고서](../2026-11-11-full-question-bank-report.md)에 있다.
 
-운영은 같은 Vercel 프로젝트의 Python 함수다. `scripts/prepare_vercel.py`가 코드·참조 그림만 비공개 배포 폴더로 모은다. 로컬 기본 이미지 경로는 `data/private/phase2/assets`다. 실제 환경변수·교재·JSON·그림·백업을 공개 Git에 넣지 않는다.
+운영은 같은 Vercel 프로젝트의 Python 함수다. `scripts/prepare_vercel.py`가 코드·참조 그림·지정한 학습 PDF를 비공개 배포 폴더로 모은다. 로컬 기본 이미지 경로는 `data/private/phase2/assets`다. 실제 환경변수·교재·JSON·그림·백업을 공개 Git에 넣지 않는다.
+
+학습 PDF는 `data/private/study-materials/data-modeling.pdf`, `sql.pdf` 두 파일이다. 필요하면 `STUDY_MATERIALS_DIR`로 위치를 바꾼다. 배포 준비 도구는 지정한 두 PDF도 함수 내부 `study-materials/`에 복사하고, 배포 진입점이 해당 경로를 설정한다. 자료 파일이 없으면 배포 준비를 중단한다. 공개 정적 경로나 Git에 PDF를 넣지 않는다.
 
 ## 개발 도구와 확인 상태
 
