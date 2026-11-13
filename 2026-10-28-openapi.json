@@ -233,7 +233,10 @@
             "schema": {
               "anyOf": [
                 {
-                  "const": "study",
+                  "enum": [
+                    "study",
+                    "mock"
+                  ],
                   "type": "string"
                 },
                 {
@@ -1136,6 +1139,106 @@
         }
       }
     },
+    "/api/v1/study-sessions/{session_id}/progress": {
+      "post": {
+        "summary": "Sync Progress",
+        "operationId": "sync_progress_api_v1_study_sessions__session_id__progress_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProgressRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProgressResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
     "/api/v1/quiz-sessions/{session_id}/result": {
       "get": {
         "summary": "Result",
@@ -1159,6 +1262,706 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ResultResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/mock-sessions/{session_id}": {
+      "put": {
+        "summary": "Create Mock",
+        "operationId": "create_mock_api_v1_mock_sessions__session_id__put",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MockCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "200": {
+            "description": "같은 생성 조건의 재전송",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mock-sessions/{session_id}/progress": {
+      "post": {
+        "summary": "Sync Mock",
+        "operationId": "sync_mock_api_v1_mock_sessions__session_id__progress_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProgressRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProgressResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/mock-sessions/{session_id}/submit": {
+      "post": {
+        "summary": "Submit Mock",
+        "operationId": "submit_mock_api_v1_mock_sessions__session_id__submit_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmptyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/mock-sessions/{session_id}/abandon": {
+      "post": {
+        "summary": "Abandon Mock",
+        "operationId": "abandon_mock_api_v1_mock_sessions__session_id__abandon_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmptyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/me/stats": {
+      "get": {
+        "summary": "Get Stats",
+        "operationId": "get_stats_api_v1_me_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatsResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/wrong-answers": {
+      "get": {
+        "summary": "Get Wrong Answers",
+        "operationId": "get_wrong_answers_api_v1_me_wrong_answers_get",
+        "parameters": [
+          {
+            "name": "subject_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Subject Id"
+            }
+          },
+          {
+            "name": "chapter_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Chapter Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WrongAnswersResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/me/mock-sessions": {
+      "get": {
+        "summary": "Get Mock History",
+        "operationId": "get_mock_history_api_v1_me_mock_sessions_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "completed",
+                    "abandoned"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MockHistoryResponse"
                 }
               }
             }
@@ -1460,6 +2263,45 @@
         ],
         "title": "ChapterOut"
       },
+      "Counts": {
+        "properties": {
+          "total_question_count": {
+            "type": "integer",
+            "title": "Total Question Count"
+          },
+          "graded_question_count": {
+            "type": "integer",
+            "title": "Graded Question Count"
+          },
+          "correct_question_count": {
+            "type": "integer",
+            "title": "Correct Question Count"
+          },
+          "wrong_question_count": {
+            "type": "integer",
+            "title": "Wrong Question Count"
+          },
+          "ungraded_question_count": {
+            "type": "integer",
+            "title": "Ungraded Question Count"
+          },
+          "accuracy_percent": {
+            "type": "number",
+            "title": "Accuracy Percent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "total_question_count",
+          "graded_question_count",
+          "correct_question_count",
+          "wrong_question_count",
+          "ungraded_question_count",
+          "accuracy_percent"
+        ],
+        "title": "Counts"
+      },
       "EmptyRequest": {
         "properties": {},
         "additionalProperties": false,
@@ -1560,6 +2402,66 @@
         ],
         "title": "GradeResponse"
       },
+      "GroupCounts": {
+        "properties": {
+          "total_question_count": {
+            "type": "integer",
+            "title": "Total Question Count"
+          },
+          "graded_question_count": {
+            "type": "integer",
+            "title": "Graded Question Count"
+          },
+          "correct_question_count": {
+            "type": "integer",
+            "title": "Correct Question Count"
+          },
+          "wrong_question_count": {
+            "type": "integer",
+            "title": "Wrong Question Count"
+          },
+          "ungraded_question_count": {
+            "type": "integer",
+            "title": "Ungraded Question Count"
+          },
+          "accuracy_percent": {
+            "type": "number",
+            "title": "Accuracy Percent"
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "subject_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "total_question_count",
+          "graded_question_count",
+          "correct_question_count",
+          "wrong_question_count",
+          "ungraded_question_count",
+          "accuracy_percent",
+          "id",
+          "name"
+        ],
+        "title": "GroupCounts"
+      },
       "ImageBlock": {
         "properties": {
           "type": {
@@ -1607,6 +2509,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/Review"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "solution": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Solution"
               },
               {
                 "type": "null"
@@ -1687,6 +2599,13 @@
             },
             "type": "array",
             "title": "Items"
+          },
+          "assets": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Assets"
           }
         },
         "additionalProperties": false,
@@ -1698,6 +2617,158 @@
           "items"
         ],
         "title": "ItemsResponse"
+      },
+      "MockCreate": {
+        "properties": {
+          "include_drafts": {
+            "type": "boolean",
+            "title": "Include Drafts",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "MockCreate"
+      },
+      "MockHistoryItem": {
+        "properties": {
+          "session": {
+            "$ref": "#/components/schemas/SessionOut"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MockSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "session",
+          "summary"
+        ],
+        "title": "MockHistoryItem"
+      },
+      "MockHistoryResponse": {
+        "properties": {
+          "server_now": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Server Now"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MockHistoryItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "server_now",
+          "items"
+        ],
+        "title": "MockHistoryResponse"
+      },
+      "MockResult": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "const": "mock",
+            "title": "Mode",
+            "default": "mock"
+          },
+          "session": {
+            "$ref": "#/components/schemas/SessionOut"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/MockSummary"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ResultItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "session",
+          "summary",
+          "items"
+        ],
+        "title": "MockResult"
+      },
+      "MockSummary": {
+        "properties": {
+          "item_count": {
+            "type": "integer",
+            "title": "Item Count"
+          },
+          "answered_item_count": {
+            "type": "integer",
+            "title": "Answered Item Count"
+          },
+          "unanswered_item_count": {
+            "type": "integer",
+            "title": "Unanswered Item Count"
+          },
+          "correct_item_count": {
+            "type": "integer",
+            "title": "Correct Item Count"
+          },
+          "incorrect_item_count": {
+            "type": "integer",
+            "title": "Incorrect Item Count"
+          },
+          "score": {
+            "type": "integer",
+            "title": "Score"
+          },
+          "max_score": {
+            "type": "integer",
+            "title": "Max Score"
+          },
+          "accuracy_percent": {
+            "type": "number",
+            "title": "Accuracy Percent"
+          },
+          "passed": {
+            "type": "boolean",
+            "title": "Passed"
+          },
+          "subjects": {
+            "items": {
+              "$ref": "#/components/schemas/SubjectScore"
+            },
+            "type": "array",
+            "title": "Subjects"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "item_count",
+          "answered_item_count",
+          "unanswered_item_count",
+          "correct_item_count",
+          "incorrect_item_count",
+          "score",
+          "max_score",
+          "accuracy_percent",
+          "passed",
+          "subjects"
+        ],
+        "title": "MockSummary"
       },
       "NavigatorItem": {
         "properties": {
@@ -1847,6 +2918,93 @@
         ],
         "title": "PositionRequest"
       },
+      "ProgressAnswer": {
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Item Id"
+          },
+          "attempt_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Attempt Id"
+          },
+          "attempt_number": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Attempt Number"
+          },
+          "selected_option_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Option Id"
+          },
+          "graded": {
+            "type": "boolean",
+            "title": "Graded"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "item_id",
+          "attempt_id",
+          "attempt_number",
+          "selected_option_id",
+          "graded"
+        ],
+        "title": "ProgressAnswer"
+      },
+      "ProgressRequest": {
+        "properties": {
+          "answers": {
+            "items": {
+              "$ref": "#/components/schemas/ProgressAnswer"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Answers"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "answers"
+        ],
+        "title": "ProgressRequest"
+      },
+      "ProgressResponse": {
+        "properties": {
+          "server_now": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Server Now"
+          },
+          "saved_attempt_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Saved Attempt Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "server_now",
+          "saved_attempt_ids"
+        ],
+        "title": "ProgressResponse"
+      },
       "QuestionOut": {
         "properties": {
           "id": {
@@ -1977,7 +3135,22 @@
             "title": "Server Now"
           },
           "result": {
-            "$ref": "#/components/schemas/StudyResult"
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/StudyResult"
+              },
+              {
+                "$ref": "#/components/schemas/MockResult"
+              }
+            ],
+            "title": "Result",
+            "discriminator": {
+              "propertyName": "mode",
+              "mapping": {
+                "mock": "#/components/schemas/MockResult",
+                "study": "#/components/schemas/StudyResult"
+              }
+            }
           }
         },
         "additionalProperties": false,
@@ -2247,6 +3420,79 @@
           "items"
         ],
         "title": "SessionResponse"
+      },
+      "Solution": {
+        "properties": {
+          "correct_option_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Correct Option Id"
+          },
+          "explanation_blocks": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/TextBlock"
+                },
+                {
+                  "$ref": "#/components/schemas/ImageBlock"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "image": "#/components/schemas/ImageBlock",
+                  "sql": "#/components/schemas/TextBlock",
+                  "text": "#/components/schemas/TextBlock"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Explanation Blocks"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "correct_option_id",
+          "explanation_blocks"
+        ],
+        "title": "Solution"
+      },
+      "StatsResponse": {
+        "properties": {
+          "server_now": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Server Now"
+          },
+          "overall": {
+            "$ref": "#/components/schemas/Counts"
+          },
+          "subjects": {
+            "items": {
+              "$ref": "#/components/schemas/GroupCounts"
+            },
+            "type": "array",
+            "title": "Subjects"
+          },
+          "chapters": {
+            "items": {
+              "$ref": "#/components/schemas/GroupCounts"
+            },
+            "type": "array",
+            "title": "Chapters"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "server_now",
+          "overall",
+          "subjects",
+          "chapters"
+        ],
+        "title": "StatsResponse"
       },
       "StudyAll": {
         "properties": {
@@ -2518,6 +3764,50 @@
         ],
         "title": "SubjectOut"
       },
+      "SubjectScore": {
+        "properties": {
+          "subject_id": {
+            "type": "integer",
+            "title": "Subject Id"
+          },
+          "item_count": {
+            "type": "integer",
+            "title": "Item Count"
+          },
+          "correct_item_count": {
+            "type": "integer",
+            "title": "Correct Item Count"
+          },
+          "score": {
+            "type": "integer",
+            "title": "Score"
+          },
+          "max_score": {
+            "type": "integer",
+            "title": "Max Score"
+          },
+          "minimum_score": {
+            "type": "integer",
+            "title": "Minimum Score"
+          },
+          "failed": {
+            "type": "boolean",
+            "title": "Failed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "subject_id",
+          "item_count",
+          "correct_item_count",
+          "score",
+          "max_score",
+          "minimum_score",
+          "failed"
+        ],
+        "title": "SubjectScore"
+      },
       "TextBlock": {
         "properties": {
           "type": {
@@ -2541,6 +3831,75 @@
           "text"
         ],
         "title": "TextBlock"
+      },
+      "WrongAnswer": {
+        "properties": {
+          "question_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Question Id"
+          },
+          "question_key": {
+            "type": "string",
+            "title": "Question Key"
+          },
+          "subject_id": {
+            "type": "integer",
+            "title": "Subject Id"
+          },
+          "chapter_id": {
+            "type": "integer",
+            "title": "Chapter Id"
+          },
+          "chapter_name": {
+            "type": "string",
+            "title": "Chapter Name"
+          },
+          "last_graded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Graded At"
+          },
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "question_id",
+          "question_key",
+          "subject_id",
+          "chapter_id",
+          "chapter_name",
+          "last_graded_at",
+          "available"
+        ],
+        "title": "WrongAnswer"
+      },
+      "WrongAnswersResponse": {
+        "properties": {
+          "server_now": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Server Now"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WrongAnswer"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "server_now",
+          "items"
+        ],
+        "title": "WrongAnswersResponse"
       }
     }
   }

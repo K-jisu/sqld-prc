@@ -1,24 +1,28 @@
 # SQLD Practice
 
-SQLD 문제풀이와 모의시험을 혼자 공부하기 위한 개인 학습 앱입니다. Vercel Authentication의 All Deployments로 화면·API·문항 이미지의 모든 직접 주소를 보호해 비공개 배포했습니다. 앱 자체 로그인·로그아웃은 두지 않습니다.
+정리일: 2026-11-13.
 
-- 프론트: Next.js App Router, React, TypeScript, Tailwind CSS, TanStack Query
-- 백엔드: Python, FastAPI, SQLModel, psycopg, Alembic
-- DB: Neon PostgreSQL
+교재 기반 SQLD 문제풀이·모의고사를 혼자 사용하는 비공개 학습 앱입니다.
 
-이 저장소는 공개 상태입니다. 교재 PDF·변환한 문항 데이터·문항 이미지는 커밋하지 않습니다.
+[운영 앱](https://sqld-prc-study.vercel.app) · [작업 상태](WORK_CHECKLIST.md) · [다음 세션 안내](HANDOFF.md)
 
-## 휴대폰에서 학습하기
+## 사용하기
 
-[비공개 학습 앱](https://sqld-prc-study.vercel.app)에 접속해 본인 Vercel 계정으로 확인합니다. `검수 대기 문항 포함`을 선택하면 전체 **167문항(1과목50·2과목117)**을 풀 수 있습니다. 합의한 누락9문항만 제외했습니다. 기존8문항 학습은 유지되므로 전체를 풀려면 홈에서 새 학습을 시작합니다. PC에서도 같은 주소를 사용합니다. 모의시험은 아직 구현하지 않았습니다.
+본인 Vercel 계정으로 접근을 확인한 뒤 사용합니다. 앱 자체 로그인·로그아웃은 없습니다.
 
-Next.js와 FastAPI를 한 프로젝트에 배포했고 Neon에 풀이를 저장합니다. 인증 없는 화면·API·이미지 접근 차단과 실제 클라우드 학습 흐름을 확인했습니다. 물리 휴대폰에서의 최종 확인은 남아 있습니다. [배포·검증 결과와 재배포 방법](2026-11-11-private-deployment-report.md)을 참고합니다.
+- **학습:** 전체·과목·단원별 범위, 이어풀기, 즉시/일괄 채점, 해설, 재풀이, 결과 복습.
+- **모의고사:** 50문항(1과목10·2과목40), 90분, 제출/만료 채점, 포기, 점수·합격/과락, 해설.
+- **내 기록:** 전체·과목·단원 통계, 필터별 오답 다시 풀기, 지난 시험 결과.
+
+문제은행은 **167문항·668보기**입니다. 1과목50개·2과목117개이며 모두 검수 대기입니다. 학습의 `검수 대기 문항 포함`, 시험의 `미검수 문항도 출제`를 선택합니다. 검수 상태는 자동 변경하지 않습니다. 기존8문항 학습은 보존되므로 전체 범위는 새 학습으로 시작합니다.
+
+일반 학습은 문제·정답·해설·그림을 처음에 함께 받아 유지하고 선택·채점·이동을 바로 반영합니다. 기록은 모아 저장하며 종료 전에 전송합니다. 탭 복귀/재연결로 전체 문제를 자동 재조회하지 않습니다. 다른 기기 변경은 새로고침하면 반영됩니다.
+
+시험은 문항을 한 번에 받고 선택은 즉시 반영하지만 정답·해설은 제출/만료 후 공개합니다. 마감과 채점은 서버 기준입니다.
 
 ## 개발 실행
 
-프로젝트 루트에서 각각 별도 터미널로 실행합니다.
-
-### 프론트
+각 프로젝트를 별도 터미널에서 실행합니다.
 
 ```bash
 cd frontend
@@ -26,74 +30,39 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-http://localhost:3000 에서 확인합니다. 프로젝트의 pnpm 버전은 `frontend/package.json`의 `packageManager`에 고정합니다.
-
-전역 pnpm 실행기가 다른 버전이나 설치 경로를 가리켜 실행되지 않는 환경에서는 동일한 프로젝트 버전을 명시합니다.
-
-```bash
-npx --yes pnpm@10.32.1 install --frozen-lockfile
-npx --yes pnpm@10.32.1 dev
-```
-
-이 명령도 의존성 관리는 pnpm으로 수행합니다. npm install을 섞어 사용하지 않습니다.
-
-### 백엔드
-
 ```bash
 cd backend
 uv sync --locked
 uv run --env-file .env --locked fastapi dev src/backend/main.py
 ```
 
-http://127.0.0.1:8000/docs 에서 확인합니다.
+프론트는 http://localhost:3000 , 백엔드 문서는 http://127.0.0.1:8000/docs 입니다. `.env.example`을 참고하고 백엔드 `APP_ORIGIN`을 브라우저 출처와 맞춥니다. 프론트의 서버 전용 `BACKEND_API_URL` 기본값은 http://127.0.0.1:8000 입니다.
 
-## 검증
+pnpm 실행기가 잘못 연결됐다면 `npx --yes pnpm@10.32.1 <명령>`을 사용합니다. npm install과 혼용하지 않습니다.
 
-3단계 DB 모델·마이그레이션·샘플 입력 절차는 [백엔드 README](backend/README.md)에 있습니다. [로컬 PostgreSQL과 실제 Neon 검증 결과](2026-11-11-phase3-database-report.md)를 구분해 기록합니다.
+## 문서
 
-4단계는 과목·단원 조회, 학습 생성·이어 풀기, 답안 저장·채점·재풀이·종료와 문항 이미지 API를 구현했고 GitHub main의 `75aba3b`로 업로드했습니다. [4단계 구현·검증 결과](2026-11-11-phase4-study-api-report.md)와 [API 명세](2026-10-28-api-design.md)를 참고합니다.
+| 문서 | 용도 |
+|---|---|
+| [작업 상태](WORK_CHECKLIST.md) | 구현·배포와 미확인 사항 |
+| [인계 안내](HANDOFF.md) | 브랜치·핵심 파일·사용자 지시 |
+| [기술 구성](TECH_STACK.md) | 현재 스택과 선언 버전 |
+| [프론트](frontend/README.md) / [백엔드](backend/README.md) | 실행·설정·저장 방식 |
+| [API 명세](2026-10-28-api-design.md) / [OpenAPI](2026-10-28-openapi.json) | 현재 요청·응답 계약 |
+| [DB 설계](2026-10-28-database-design.md) | 테이블·키·제약조건 |
+| [제품](PRODUCT.md) / [화면](DESIGN.md) | 개인 학습 목적·학습 노트 디자인 |
 
-5단계에서는 밝고 차분한 학습 노트 화면에 실제 API를 연결했습니다. 전체·과목·단원별 학습, 이어 풀기, 자동 저장, 한 문항 채점·해설·재풀이, 종료·결과·복습을 사용할 수 있습니다. 초기샘플8개에서 전체167개로 추가 등록했고 모두 draft이므로 `검수 대기 문항 포함`을 선택합니다. 이 선택으로 검수 상태가 바뀌지는 않습니다. [5단계 결과](2026-11-11-phase5-learning-ui-report.md)와 [전체 문항 등록 결과](2026-11-11-full-question-bank-report.md)를 참고합니다. 모의시험·통계는 후속 단계이며 비공개 학습 배포는 완료했습니다.
+## 비공개 자료와 확인 상태
 
-프론트의 `frontend/`에서:
+화면·API·이미지는 한 Vercel 프로젝트의 Authentication + All Deployments로 보호합니다. 운영 DB에는167문항이 이미 있으므로 다시 입력할 필요가 없습니다.
 
-```bash
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm build
-```
+교재 PDF·ZIP·변환 JSON·문항 이미지·실제 `.env`·백업은 Git에 없습니다. 집에서 로컬 연동/재배포하려면 개인 경로로 별도 전달해야 합니다. 미전송 기록은 해당 브라우저 localStorage에 있으며 서버 저장 후 다른 기기와 공유됩니다.
 
-백엔드의 `backend/`에서:
+주요 기능은 구현·배포됐습니다. 사용자 요청에 따라 최신 변경의 테스트·lint·브라우저/API/DB 확인은 실행하지 않았고 배포 빌드만 통과했습니다. 원문 최종 검수와 백업·복원 실습은 미확인입니다.
 
-```bash
-uv run pytest -q
-```
+날짜별 보고서는 당시 이력입니다. 과거 테스트 결과를 최신 코드의 검증 결과로 사용하지 않습니다.
 
-자세한 실행·검증 방법은 [프론트 README](frontend/README.md)와 [백엔드 README](backend/README.md)를 참고합니다.
-
-## 환경변수와 Git
-
-각 프로젝트의 `.env.example`을 기준으로 필요한 값을 정합니다. 실제 `.env`, 교재 PDF, 가상환경, node_modules, 빌드 결과와 캐시는 Git에서 제외하고 `frontend/pnpm-lock.yaml`, `backend/uv.lock`은 포함합니다. DB 연결과 `APP_ORIGIN`은 백엔드에서 사용합니다. 프론트는 같은 출처의 `/api/v1` 요청을 서버 전용 `BACKEND_API_URL`로 전달합니다. 로컬 기본값은 `http://127.0.0.1:8000`이며 브라우저 주소가 `http://localhost:3000`이면 백엔드 `APP_ORIGIN`도 그 값으로 맞춥니다.
-
-## 설계와 진행
-
-2단계 샘플 준비는 제공 ZIP을 루트에 둔 뒤 백엔드에서 실행합니다.
-
-```bash
-cd backend
-uv run --locked python scripts/prepare_samples.py
-uv run --locked python scripts/prepare_bank.py
-```
-
-자료는 Git에서 제외한 `data/private/phase2/`에 생성됩니다. 생성 결과는 재실행 시 갱신되지만 `user-review.md`의 사용자 기록은 보존합니다. 샘플은 자동으로 검수 완료 처리하지 않습니다. [2단계 결과와 남은 검수](2026-11-10-phase2-report.md)를 참고합니다.
-
-첫 명령은 ZIP 추출·대표샘플8개, 두 번째는 전체167개 `questions.json`을 만듭니다. 기존 `samples.json`과 사용자 확인 기록은 그대로 보존합니다. DB 입력 기본값과 배포 이미지 선택은 `questions.json`이 있으면 전체를 사용하고 없을 때만 샘플을 사용합니다.
-
-원본 대조로 확인한 교정은 같은 폴더의 `sample-corrections.json`에 보관합니다. 이 파일도 비공개 입력 자료이므로 ZIP과 함께 보관합니다. 재실행 때 원문이 교정 대상과 일치하지 않으면 오류로 알립니다.
-
-- [기술 스택](TECH_STACK.md)
-- [작업 체크리스트](WORK_CHECKLIST.md)
-- [DB 설계](2026-10-28-database-design.md)
-- [API 명세](2026-10-28-api-design.md)
-- [OpenAPI](2026-10-28-openapi.json)
+- [전체167문항 등록](2026-11-11-full-question-bank-report.md)
+- [최초 비공개 배포](2026-11-11-private-deployment-report.md)
+- [모의고사·기록 통합](2026-11-12-finish-study-app-plan.md)
+- [학습 재로딩 수정](2026-11-13-learning-preload-fix.md)
